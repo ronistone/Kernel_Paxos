@@ -21,6 +21,7 @@ unpack_message(struct server* serv, size_t len)
   struct user_msg*     mess = (struct user_msg*)serv->ethop.rec_buffer;
   struct client_value* val = (struct client_value*)mess->value;
   struct connection*   conn = find_connection(serv, val->client_id);
+//  printf("Message Received: %s\n", mess->value);
   if (conn)
     eth_sendmsg(&serv->ethop, conn->address, mess, len);
 }

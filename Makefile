@@ -5,6 +5,7 @@ paxos/quorum.o \
 paxos/storage_mem.o \
 paxos/storage_utils.o \
 paxos/storage.o \
+paxos/workers_pool.o \
 evpaxos/message.o \
 evpaxos/paxos_types_pack.o \
 evpaxos/config.o \
@@ -36,11 +37,13 @@ LEARN_OBJ= \
 	evpaxos/evlearner.o \
 	paxos/learner.o \
 	kpaxos/kernel_device.o \
+	kpaxos/klearner_device_operations.o \
 	$(PAX_OBJ)
 
 REP_OBJ= \
 	kpaxos/kernel_device.o \
-  kpaxos/kreplica.o \
+	kpaxos/klearner_device_operations.o \
+    kpaxos/kreplica.o \
 	evpaxos/evlearner.o \
 	evpaxos/evproposer.o \
 	evpaxos/evacceptor.o \

@@ -219,6 +219,7 @@ random_string(char* s, const int len)
   for (i = 0; i < len - 1; ++i)
     s[i] = alphanum[rand() % (sizeof(alphanum) - 1)];
   s[len - 1] = 0;
+  printf("Message generated: %s\n", s);
 }
 
 void
@@ -283,7 +284,7 @@ find_proposer(struct client* cl, char* path)
       while (*l == ' ') {
         l++;
       }
-      if (sscanf(l, "proposer %d %s", &id, addr) == 2 && id == cl->prop_id) {
+      if ((sscanf(l, "proposer %d %s", &id, addr) == 2 || sscanf(l, "replica %d %s", &id, addr) == 2) && id == cl->prop_id) {
         str_to_mac(addr, cl->prop_addr);
         return 0;
       }

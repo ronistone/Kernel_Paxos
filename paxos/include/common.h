@@ -2,6 +2,7 @@
 #define COMMON_PAX
 
 #include <linux/slab.h> //kmalloc
+#include <linux/if_ether.h>
 
 #define pmalloc(size) kmalloc(size, GFP_ATOMIC)
 #define prealloc(ptr, size) krealloc(ptr, size, GFP_ATOMIC)
@@ -10,6 +11,8 @@
 extern const char* MOD_NAME;
 
 typedef uint8_t eth_address;
+
+#define MAX_PAXOS_VALUE_SIZE ETH_DATA_LEN
 
 #define LOG_DEBUG(fmt, args...)                                                \
   printk(KERN_DEBUG "%s: " fmt "\n", MOD_NAME, ##args)

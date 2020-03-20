@@ -1,4 +1,5 @@
 #include "evpaxos.h"
+#include "klearner_device_operations.h"
 #include "kernel_device.h"
 #include <asm/atomic.h>
 #include <linux/init.h>
@@ -23,6 +24,7 @@ module_param(path, charp, S_IRUGO);
 MODULE_PARM_DESC(path, "The config file position, default ./paxos.conf");
 
 static struct evpaxos_replica* replica = NULL;
+static paxos_kernel_device* kleaner_device = NULL;
 
 void
 deliver(unsigned iid, char* value, size_t size, void* arg)
@@ -33,7 +35,8 @@ deliver(unsigned iid, char* value, size_t size, void* arg)
 static void
 start_replica(int id)
 {
-  kdevchar_init(id, "klearner");
+  kleaner_device = create_kleaner_device();
+  kdevchar_init(id, "klearner", kleaner_device);
   replica = evpaxos_replica_init(id, deliver, NULL, if_name, path);
 
   if (replica == NULL) {
@@ -56,7 +59,7 @@ static int __init
 static void __exit
             replica_exit(void)
 {
-  kdevchar_exit();
+  kdevchar_exit(kleaner_device);
   if (replica != NULL)
     evpaxos_replica_free(replica);
   LOG_INFO("Module unloaded");

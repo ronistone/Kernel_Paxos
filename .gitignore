@@ -6,3 +6,9 @@
 *.symvers
 *.order
 build/**
+.vagrant/
+.idea/
+CMakeLists.txt
+cmake-build-debug/
+compile_commands.json
+stats-*

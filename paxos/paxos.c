@@ -174,3 +174,18 @@ paxos_log_debug(const char* format, ...)
   paxos_log(PAXOS_LOG_DEBUG, format, ap);
   va_end(ap);
 }
+
+void
+clearPaxosAccepted(paxos_accepted* accepted) {
+  accepted -> iid = 0;
+  accepted -> promise_iid = 0;
+  accepted -> ballot = 0;
+  accepted -> value.paxos_value_len = 0;
+  memset(accepted -> value.paxos_value_val, 0, MAX_PAXOS_VALUE_SIZE);
+}
+
+void set_value_pointer_ahead_of_accepted(paxos_accepted* accepted) {
+  if( accepted != NULL ) {
+    accepted -> value.paxos_value_val = (char*)(accepted + sizeof(paxos_accepted));
+  }
+}

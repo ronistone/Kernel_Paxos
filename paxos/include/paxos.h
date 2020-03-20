@@ -82,6 +82,16 @@ extern "C"
     size_t lmdb_mapsize;
   };
 
+  typedef struct kernel_device_callback {
+
+    wait_queue_head_t response_wait;
+    struct paxos_accepted* response;
+    int buffer_id;
+    uint32_t is_done;
+    uint32_t iid;
+
+  } kernel_device_callback;
+
   extern struct paxos_config paxos_config;
 
   /* Core functions */
@@ -97,6 +107,8 @@ extern "C"
   void         paxos_log_error(const char* format, ...);
   void         paxos_log_info(const char* format, ...);
   void         paxos_log_debug(const char* format, ...);
+  void         clearPaxosAccepted(paxos_accepted* accepted);
+  void         set_value_pointer_ahead_of_accepted(paxos_accepted* accepted);
 
 /*
     MAX_N_OF_PROPOSERS should be removed.

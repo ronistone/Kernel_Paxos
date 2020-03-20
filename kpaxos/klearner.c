@@ -1,4 +1,5 @@
 #include "evpaxos.h"
+#include "klearner_device_operations.h"
 #include "kernel_device.h"
 #include <asm/atomic.h>
 #include <linux/init.h>
@@ -22,6 +23,7 @@ module_param(path, charp, S_IRUGO);
 MODULE_PARM_DESC(path, "The config file position, default ./paxos.conf");
 
 static struct evlearner* lea = NULL;
+static paxos_kernel_device* kleaner_device = NULL;
 
 static void
 on_deliver(unsigned int iid, char* value, size_t size, void* arg)
@@ -32,7 +34,9 @@ on_deliver(unsigned int iid, char* value, size_t size, void* arg)
 static int
 start_learner(void)
 {
-  kdevchar_init(id, "klearner");
+
+  kleaner_device = create_kleaner_device();
+  kdevchar_init(id, "klearner", kleaner_device);
   lea = evlearner_init(on_deliver, NULL, if_name, path, 0);
 
   if (lea == NULL) {
@@ -57,7 +61,7 @@ static int __init
 static void __exit
             learner_exit(void)
 {
-  kdevchar_exit();
+  kdevchar_exit(kleaner_device);
   if (lea != NULL)
     evlearner_free(lea);
   LOG_INFO("Module unloaded");
