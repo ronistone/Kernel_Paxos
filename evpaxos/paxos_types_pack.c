@@ -137,7 +137,7 @@ msgpack_unpack_paxos_promise(msgpack_packer* o, paxos_promise* v)
 static long
 msgpack_pack_paxos_accept(msgpack_packer* p, paxos_accept* v)
 {
-  long  size = (sizeof(unsigned int) * 3);
+  long  size = (sizeof(unsigned int) * 4);
   int   len = check_len(v->value.paxos_value_len, size);
   char* value = v->value.paxos_value_val;
 
@@ -167,7 +167,7 @@ msgpack_unpack_paxos_accept(msgpack_packer* o, paxos_accept* v)
 static long
 msgpack_pack_paxos_accepted(msgpack_packer* p, paxos_accepted* v)
 {
-  long  size = (sizeof(unsigned int) * 5);
+  long  size = (sizeof(unsigned int) * 6);
   char* value = v->value.paxos_value_val;
   int   len = check_len(v->value.paxos_value_len, size);
 
