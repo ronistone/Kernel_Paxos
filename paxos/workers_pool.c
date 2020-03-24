@@ -126,11 +126,11 @@ void free_workers(workers_pool *pool) {
   }
 }
 
-void add_work(workers_pool* pool, persistence_work* work){
+void add_work(workers_pool* pool, struct kthread_work* work){
 
   if( pool != NULL && pool -> worker[pool -> current_worker] != NULL ) {
 //        printk("\nQueue in the worker %d and the state is %ld\n\n", pool -> current_worker, pool -> worker[pool -> current_worker] -> task -> state);
-    queue_kthread_work(pool -> worker[pool -> current_worker], &work -> work);
+    queue_kthread_work(pool -> worker[pool -> current_worker], work);
     pool->current_worker = (pool->current_worker + 1) % pool->num_workers;
   } else {
     printk("ERROR: workers pool is NULL!\n");

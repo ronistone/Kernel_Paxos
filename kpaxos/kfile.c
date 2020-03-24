@@ -16,7 +16,7 @@ file_open(const char* path, int flags, int rights)
   set_fs(oldfs);
   if (IS_ERR(filp)) {
     err = PTR_ERR(filp);
-    printk(KERN_ERR "File Error %d\n", err);
+    printk(KERN_ERR "File Error[%s] %d\n", path, err);
     return NULL;
   }
   return filp;

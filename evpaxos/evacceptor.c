@@ -29,6 +29,7 @@
 #include "evpaxos.h"
 #include "message.h"
 #include "peers.h"
+#include "evworkers.h"
 #include <linux/slab.h>
 #include <linux/udp.h>
 
@@ -186,9 +187,8 @@ evacceptor_init_internal(int id, struct evpaxos_config* c, struct peers* p)
 }
 
 struct evacceptor*
-evacceptor_init(int id, char* if_name, char* path)
+evacceptor_init(int id, char* if_name, struct evpaxos_config* config)
 {
-  struct evpaxos_config* config = evpaxos_config_read(path);
   if (config == NULL)
     return NULL;
 

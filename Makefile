@@ -11,6 +11,7 @@ evpaxos/paxos_types_pack.o \
 evpaxos/config.o \
 evpaxos/peers.o \
 evpaxos/eth.o \
+evpaxos/evworkers.o \
 kpaxos/kfile.o
 
 CL_OBJ= \

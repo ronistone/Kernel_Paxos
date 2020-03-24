@@ -42,6 +42,7 @@ extern "C"
   struct evproposer;
   struct evacceptor;
   struct evpaxos_replica;
+  struct evpaxos_config;
 
   /**
    * When starting a learner you must pass a callback to be invoked whenever
@@ -67,7 +68,7 @@ extern "C"
    */
   struct evpaxos_replica* evpaxos_replica_init(int id, deliver_function cb,
                                                void* arg, char* if_name,
-                                               char* path);
+                                               struct evpaxos_config* config);
 
   /**
    * Destroy a Paxos replica and free all its memory.
@@ -139,7 +140,7 @@ extern "C"
    * Initializes a acceptor with a given id (which MUST be unique),
    * a config file and a libevent event_base.
    */
-  struct evacceptor* evacceptor_init(int id, char* if_name, char* path);
+  struct evacceptor* evacceptor_init(int id, char* if_name, struct evpaxos_config* config);
 
   /**
    * Frees the memory allocated by the acceptor.
