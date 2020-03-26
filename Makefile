@@ -3,6 +3,7 @@ paxos/carray.o \
 paxos/paxos.o \
 paxos/quorum.o \
 paxos/storage_mem.o \
+paxos/storage_lmdb.o \
 paxos/storage_utils.o \
 paxos/storage.o \
 paxos/workers_pool.o \
@@ -12,6 +13,9 @@ evpaxos/config.o \
 evpaxos/peers.o \
 evpaxos/eth.o \
 evpaxos/evworkers.o \
+kpaxos/kernel_device.o \
+kpaxos/kread_persistence_device_operations.o \
+kpaxos/kwrite_persistence_device_operations.o \
 kpaxos/kfile.o
 
 CL_OBJ= \
@@ -37,12 +41,10 @@ LEARN_OBJ= \
 	kpaxos/klearner.o \
 	evpaxos/evlearner.o \
 	paxos/learner.o \
-	kpaxos/kernel_device.o \
 	kpaxos/klearner_device_operations.o \
 	$(PAX_OBJ)
 
 REP_OBJ= \
-	kpaxos/kernel_device.o \
 	kpaxos/klearner_device_operations.o \
     kpaxos/kreplica.o \
 	evpaxos/evlearner.o \
@@ -78,15 +80,20 @@ C_COMP:= -std=c99
 G_COMP:= -std=gnu99
 USR_FLAGS:= -Wall -D user_space
 USR_SRCS := $(wildcard kpaxos/user_*.c)
-USR_CL := $(filter-out kpaxos/user_learner.c, $(USR_SRCS))
-USR_LEARN := $(filter-out kpaxos/user_client.c, $(USR_SRCS))
+USR_CL := $(filter-out kpaxos/user_learner.c kpaxos/user_storage.c, $(USR_SRCS))
+USR_LEARN := $(filter-out kpaxos/user_client.c kpaxos/user_storage.c, $(USR_SRCS))
+USR_STORE := $(filter-out kpaxos/user_learner.c kpaxos/user_client.c, $(USR_SRCS))
 USRC_OBJS := $(patsubst kpaxos/%.c, $(BUILD_DIR)/%.o, $(USR_CL))
 USRL_OBJS := $(patsubst kpaxos/%.c, $(BUILD_DIR)/%.o, $(USR_LEARN))
+USRS_OBJS := $(patsubst kpaxos/%.c, $(BUILD_DIR)/%.o, $(USR_STORE))
+LMDBOP_OBJS := $(BUILD_DIR)/lmdb_operations.o
 
 EXTRA_CFLAGS:= -I$(PWD)/kpaxos/include -I$(PWD)/paxos/include -I$(PWD)/evpaxos/include -I$(HOME)/local/include
+EXTRALMDB_FLAG:= -llmdb
+EXTRASTORE_FLAG:= -lpthread
 ccflags-y:= $(G_COMP) -Wall -Wno-declaration-after-statement -Wframe-larger-than=3100 -O3
 
-all: $(BUILD_DIR) kernel_app user_client user_learner
+all: $(BUILD_DIR) kernel_app user_client user_learner user_storage
 
 kernel_app: $(BUILD_DIR_MAKEFILE)
 	make -C $(KDIR) M=$(BUILD_DIR) src=$(PWD) modules
@@ -107,6 +114,9 @@ user_client: $(USRC_OBJS)
 
 user_learner: $(USRL_OBJS)
 	$(CC) $(USR_FLAGS) $(EXTRA_CFLAGS) -o $(BUILD_DIR)/$@ $^
+
+user_storage: $(LMDBOP_OBJS) $(USRS_OBJS)
+	$(CC) $(USR_FLAGS) $(EXTRA_CFLAGS) $(EXTRASTORE_FLAG) $(EXTRALMDB_FLAG) -o $(BUILD_DIR)/$@ $^
 
 ###########################################################################
 clean:

@@ -68,6 +68,7 @@ void send_paxos_message(struct net_device* dev, eth_address* addr,
   void send_paxos_learner_del(struct net_device* dev, eth_address* addr);
   void send_paxos_acceptor_ok(struct net_device* dev, eth_address* addr);
   paxos_message* copy_paxos_message(paxos_message* msg);
+  char*          paxos_accepted_to_char_array(paxos_accepted* acc, char* buffer);
 #ifdef __cplusplus
 }
 #endif

@@ -18,7 +18,7 @@ void
 kset_message(char* msg, size_t size)
 {
   if (atomic_read(&klearner_device.used_buf) >= BUFFER_SIZE) {
-    if (printk_ratelimit())
+    //if (printk_ratelimit())
       paxos_log_error("Buffer is full! Lost a value");
   }
   set_value_pointer_ahead_of_accepted(klearner_device.msg_buf[klearner_device.current_buf]);

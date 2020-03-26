@@ -320,3 +320,18 @@ print_paxos_message(paxos_message* message)
   }
   return message;
 }
+
+char*
+paxos_accepted_to_char_array(paxos_accepted* acc, char* buffer)
+{
+  size_t len = acc->value.paxos_value_len;
+//  char* buffer = malloc(sizeof(paxos_accepted) + len);
+  if (buffer == NULL) {
+    return NULL;
+  }
+  memcpy(buffer, acc, sizeof(paxos_accepted));
+  if (len > 0) {
+    memcpy(&buffer[sizeof(paxos_accepted)], acc->value.paxos_value_val, len);
+  }
+  return buffer;
+}

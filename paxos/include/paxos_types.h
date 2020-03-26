@@ -32,6 +32,10 @@
 
 typedef unsigned char msgpack_packer;
 
+/* Paxos instance ids and ballots */
+typedef uint32_t iid_t;
+typedef uint32_t ballot_t;
+
 struct paxos_value
 {
   int   paxos_value_len;

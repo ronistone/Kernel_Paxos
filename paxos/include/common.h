@@ -16,10 +16,13 @@ typedef uint8_t eth_address;
 #define NOOP (void)0
 
 #define LOG_DEBUG(fmt, args...)                                                \
-  printk_ratelimit()? NOOP : printk(KERN_DEBUG "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+  printk(KERN_DEBUG "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+//  printk_ratelimit()? NOOP : printk(KERN_DEBUG "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
 #define LOG_INFO(fmt, args...)                                                 \
-  printk_ratelimit()? NOOP : printk(KERN_INFO "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+  printk(KERN_INFO "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+//  printk_ratelimit()? NOOP : printk(KERN_INFO "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
 #define LOG_ERROR(fmt, args...)                                                \
-  printk_ratelimit()? NOOP : printk(KERN_ERR "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+  printk(KERN_ERR "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
+//  printk_ratelimit()? NOOP : printk(KERN_ERR "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
 
 #endif

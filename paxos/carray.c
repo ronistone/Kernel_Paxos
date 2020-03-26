@@ -118,7 +118,7 @@ carray_full(struct carray* a)
 static void
 carray_grow(struct carray* a)
 {
-  if (printk_ratelimit())
+  //if (printk_ratelimit())
     paxos_log_error("Cannot allocate during execution! Carray value lost!");
   // int i;
   // void** tmp = vmalloc(sizeof(void*) * a->size * 2);
