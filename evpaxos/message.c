@@ -29,6 +29,10 @@
 #include "eth.h"
 #include "paxos.h"
 #include "paxos_types_pack.h"
+#include <paxos_types.h>
+
+paxos_message*
+print_paxos_message(paxos_message* message);
 
 void
 send_paxos_message(struct net_device* dev, eth_address* addr,
@@ -37,6 +41,7 @@ send_paxos_message(struct net_device* dev, eth_address* addr,
   eth_address packer[ETH_DATA_LEN];
   long        size_msg = msgpack_pack_paxos_message(packer, msg);
 
+  print_paxos_message(msg);
   eth_send(dev, addr, (uint16_t)msg->type, packer, size_msg);
 }
 
@@ -139,9 +144,179 @@ paxos_submit(struct net_device* dev, eth_address* addr, char* data, int size)
   paxos_log_debug("Client: Sent client value size data %d", size);
 }
 
+char*
+get_paxos_message_type(paxos_message* message)
+{
+
+  switch (message -> type) {
+
+    case PAXOS_CLIENT_VALUE:
+      return "PAXOS_CLIENT_VALUE";
+    case PAXOS_PROMISE:
+      return "PAXOS_PROMISE";
+    case PAXOS_ACCEPT:
+      return "PAXOS_ACCEPT";
+    case PAXOS_ACCEPTED:
+      return "PAXOS_ACCEPTED";
+    case PAXOS_PREPARE:
+      return "PAXOS_PREPARE";
+    case PAXOS_PREEMPTED:
+      return "PAXOS_PREEMPTED";
+    case PAXOS_REPEAT:
+      return "PAXOS_REPEAT";
+    case PAXOS_TRIM:
+      return "PAXOS_TRIM";
+    case PAXOS_ACCEPTOR_STATE:
+      return "PAXOS_ACCEPTOR_STATE";
+    case PAXOS_LEARNER_HI:
+      return "PAXOS_LEARNER_HI";
+    case PAXOS_LEARNER_DEL:
+      return "PAXOS_LEARNER_DEL";
+    case PAXOS_ACCEPTOR_OK:
+      return "PAXOS_ACCEPTOR_OK";
+    default:
+      return "TYPE NOT FOUND";
+  }
+}
+
 int
 recv_paxos_message(paxos_message* msg, char* msg_data, paxos_message_type proto,
                    char* data, size_t size)
 {
   return msgpack_unpack_paxos_message(msg, msg_data, proto, data, size);
+}
+
+paxos_message*
+copy_paxos_message(paxos_message* msg)
+{
+  paxos_message* message = pmalloc(sizeof(paxos_message));
+
+  memcpy(message, msg, sizeof(paxos_message));
+  switch (message -> type) {
+
+    case PAXOS_CLIENT_VALUE:
+      ALLOC_VAL_POINTER(message, client_value);
+      COPY_VAL_POINTER(message, msg, client_value);
+      paxos_log_debug("Paxos message copied: %s [ %d ] -> %s", get_paxos_message_type(message),
+        msg->u.client_value.value.paxos_value_len,
+        msg->u.client_value.value.paxos_value_val + (msg->u.client_value.value.paxos_value_len - 64));
+      break;
+
+    case PAXOS_PROMISE:
+      ALLOC_VAL_POINTER(message, promise);
+      COPY_VAL_POINTER(message, msg, promise);
+      paxos_log_debug("Paxos message copied: %s [ %d ] -> %s", get_paxos_message_type(message),
+        msg->u.promise.value.paxos_value_len,
+        msg->u.promise.value.paxos_value_val + (msg->u.promise.value.paxos_value_len - 64));
+      break;
+
+    case PAXOS_ACCEPT:
+      ALLOC_VAL_POINTER(message, accept);
+      COPY_VAL_POINTER(message, msg, accept);
+      paxos_log_debug("Paxos message copied: %s [ %d ] -> %s", get_paxos_message_type(message),
+        msg->u.accept.value.paxos_value_len,
+        msg->u.accept.value.paxos_value_val + (msg->u.accept.value.paxos_value_len - 64));
+      break;
+
+    case PAXOS_ACCEPTED:
+      ALLOC_VAL_POINTER(message, accepted);
+      COPY_VAL_POINTER(message, msg, accepted);
+      paxos_log_debug("Paxos message copied: %s [ %d ] -> %s", get_paxos_message_type(message),
+        msg->u.accepted.value.paxos_value_len,
+        msg->u.accepted.value.paxos_value_val + (msg->u.accepted.value.paxos_value_len - 64));
+      break;
+
+    case PAXOS_PREPARE:
+      break;
+
+    case PAXOS_PREEMPTED:
+      break;
+
+    case PAXOS_REPEAT:
+      break;
+
+    case PAXOS_TRIM:
+      break;
+
+    case PAXOS_ACCEPTOR_STATE:
+      break;
+
+    case PAXOS_LEARNER_HI:
+      break;
+
+    case PAXOS_LEARNER_DEL:
+      break;
+
+    case PAXOS_ACCEPTOR_OK:
+      break;
+
+    default:
+      paxos_log_error("type invalid");
+      break;
+  }
+  return message;
+}
+
+
+paxos_message*
+print_paxos_message(paxos_message* message)
+{
+  if(message == NULL) {
+    return NULL;
+  }
+  switch (message -> type) {
+
+    case PAXOS_CLIENT_VALUE:
+      paxos_log_debug("Paxos message: %s [ %d ] -> %s", get_paxos_message_type(message),
+                     message->u.client_value.value.paxos_value_len,
+                     message->u.client_value.value.paxos_value_val);
+      break;
+
+    case PAXOS_PROMISE:
+      paxos_log_debug("Paxos message: %s [ %d ] -> %s", get_paxos_message_type(message),
+                     message->u.promise.value.paxos_value_len,
+                     message->u.promise.value.paxos_value_val);
+      break;
+
+    case PAXOS_ACCEPT:
+      paxos_log_debug("Paxos message: %s [ %d ] -> %s", get_paxos_message_type(message),
+                     message->u.accept.value.paxos_value_len,
+                     message->u.accept.value.paxos_value_val);
+      break;
+
+    case PAXOS_ACCEPTED:
+      paxos_log_debug("Paxos message: %s [ %d ] -> %s", get_paxos_message_type(message),
+                     message->u.accepted.value.paxos_value_len,
+                     message->u.accepted.value.paxos_value_val);
+      break;
+
+    case PAXOS_PREPARE:
+      break;
+
+    case PAXOS_PREEMPTED:
+      break;
+
+    case PAXOS_REPEAT:
+      break;
+
+    case PAXOS_TRIM:
+      break;
+
+    case PAXOS_ACCEPTOR_STATE:
+      break;
+
+    case PAXOS_LEARNER_HI:
+      break;
+
+    case PAXOS_LEARNER_DEL:
+      break;
+
+    case PAXOS_ACCEPTOR_OK:
+      break;
+
+    default:
+      paxos_log_error("type invalid");
+      break;
+  }
+  return message;
 }

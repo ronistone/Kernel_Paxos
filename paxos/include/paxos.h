@@ -75,6 +75,7 @@ extern "C"
     /* Acceptor */
     paxos_storage_backend storage_backend;
     int                   trash_files;
+    int                   num_threads_in_pool;
 
     /* lmdb storage configuration */
     int    lmdb_sync;

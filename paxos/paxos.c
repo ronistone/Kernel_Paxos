@@ -36,6 +36,7 @@ struct paxos_config paxos_config = { .verbosity = PAXOS_LOG_ERROR,
                                      .proposer_preexec_window = 128,
                                      .storage_backend = PAXOS_MEM_STORAGE,
                                      .trash_files = 0,
+                                     .num_threads_in_pool = 10,
                                      .lmdb_sync = 0,
                                      .lmdb_env_path = "/tmp/acceptor",
                                      .lmdb_mapsize = 10 * 1024 * 1024 };

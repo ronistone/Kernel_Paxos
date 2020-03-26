@@ -32,6 +32,10 @@
 #include "evworkers.h"
 #include <linux/slab.h>
 #include <linux/udp.h>
+#include <linux/vmalloc.h>
+#include <linux/kthread.h>
+
+typedef void(*handle_function)(paxos_message*, void*, eth_address*);
 
 struct evacceptor
 {
@@ -41,10 +45,48 @@ struct evacceptor
   struct timeval    stats_interval;
 };
 
+typedef struct handler_work {
+  paxos_message* msg;
+  void* arg;
+  eth_address* src;
+  handle_function callback;
+  struct kthread_work work;
+} handler_work;
+
 static inline void
 send_acceptor_paxos_message(struct net_device* dev, struct peer* p, void* arg)
 {
   send_paxos_message(dev, get_addr(p), arg);
+}
+
+static void
+evacceptor_handle_work(struct kthread_work* param){
+  handler_work* work = container_of(param, handler_work, work);
+
+  work -> callback(work -> msg, work -> arg, work -> src);
+
+  paxos_message_destroy(work -> msg);
+  pfree(work -> src);
+  pfree(work);
+}
+
+static void
+evacceptor_create_work(paxos_message* msg, void* arg,
+                       eth_address* src,  handle_function callback)
+{
+  handler_work* work = pmalloc(sizeof(handler_work));
+  if (work != NULL) {
+    work->msg = copy_paxos_message(msg);
+    work->arg = arg;
+    work->callback = callback;
+
+    work -> src = pmalloc(ETH_ALEN);
+    memcpy(work->src, src, ETH_ALEN);
+
+    init_kthread_work(&work->work, evacceptor_handle_work);
+
+    evworker_add_work(&work->work);
+  }
 }
 
 /*
@@ -148,6 +190,42 @@ evacceptor_handle_del(paxos_message* msg, void* arg, eth_address* src)
 }
 
 static void
+evacceptor_handle_prepare_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_prepare);
+}
+
+static void
+evacceptor_handle_accept_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_accept);
+}
+
+static void
+evacceptor_handle_repeat_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_repeat);
+}
+
+static void
+evacceptor_handle_trim_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_trim);
+}
+
+static void
+evacceptor_handle_hi_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_hi);
+}
+
+static void
+evacceptor_handle_del_create_work(paxos_message* msg, void* arg, eth_address* src)
+{
+  evacceptor_create_work(msg, arg, src, evacceptor_handle_del);
+}
+
+static void
 send_acceptor_state(unsigned long arg)
 {
   struct evacceptor* a = (struct evacceptor*)arg;
@@ -170,12 +248,12 @@ evacceptor_init_internal(int id, struct evpaxos_config* c, struct peers* p)
   acceptor->state = acceptor_new(id);
   acceptor->peers = p;
 
-  peers_add_subscription(p, PAXOS_PREPARE, evacceptor_handle_prepare, acceptor);
-  peers_add_subscription(p, PAXOS_ACCEPT, evacceptor_handle_accept, acceptor);
-  peers_add_subscription(p, PAXOS_REPEAT, evacceptor_handle_repeat, acceptor);
-  peers_add_subscription(p, PAXOS_TRIM, evacceptor_handle_trim, acceptor);
-  peers_add_subscription(p, PAXOS_LEARNER_HI, evacceptor_handle_hi, acceptor);
-  peers_add_subscription(p, PAXOS_LEARNER_DEL, evacceptor_handle_del, acceptor);
+  peers_add_subscription(p, PAXOS_PREPARE, evacceptor_handle_prepare_create_work, acceptor);
+  peers_add_subscription(p, PAXOS_ACCEPT, evacceptor_handle_accept_create_work, acceptor);
+  peers_add_subscription(p, PAXOS_REPEAT, evacceptor_handle_repeat_create_work, acceptor);
+  peers_add_subscription(p, PAXOS_TRIM, evacceptor_handle_trim_create_work, acceptor);
+  peers_add_subscription(p, PAXOS_LEARNER_HI, evacceptor_handle_hi_create_work, acceptor);
+  peers_add_subscription(p, PAXOS_LEARNER_DEL, evacceptor_handle_del_create_work, acceptor);
 
   setup_timer(&acceptor->stats_ev, send_acceptor_state,
               (unsigned long)acceptor);

@@ -75,11 +75,15 @@ acceptor_receive_prepare(struct acceptor* a, paxos_prepare* req,
                          paxos_message* out)
 {
   paxos_accepted acc;
-  if (req->iid <= a->trim_iid)
+  if (req->iid <= a->trim_iid) {
+    paxos_log_debug("PREPARE -> iid less then acceptor trim");
     return 0;
+  }
   memset(&acc, 0, sizeof(paxos_accepted));
-  if (storage_tx_begin(&a->store) != 0)
+  if (storage_tx_begin(&a->store) != 0) {
+    paxos_log_debug("PREPARE -> fail to open trasaction");
     return 0;
+  }
   int found = storage_get_record(&a->store, req->iid, &acc);
   if (!found || acc.ballot <= req->ballot) {
     acc.aid = a->id;
@@ -87,11 +91,14 @@ acceptor_receive_prepare(struct acceptor* a, paxos_prepare* req,
     acc.ballot = req->ballot;
     if (storage_put_record(&a->store, &acc) != 0) {
       storage_tx_abort(&a->store);
+      paxos_log_debug("PREPARE -> fail to put in storage");
       return 0;
     }
   }
-  if (storage_tx_commit(&a->store) != 0)
+  if (storage_tx_commit(&a->store) != 0) {
+    paxos_log_debug("PREPARE -> fail to commit transaction");
     return 0;
+  }
   paxos_accepted_to_promise(&acc, out);
   return 1;
 }

@@ -61,10 +61,11 @@ static int __init
 static void __exit
             acceptor_exit(void)
 {
-  if (acc != NULL)
-    evacceptor_free(acc);
-
   evworkers_destroy_pool();
+  if (acc != NULL) {
+    evacceptor_free(acc);
+  }
+
   LOG_INFO("Module unloaded");
 }
 

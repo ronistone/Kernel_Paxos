@@ -38,7 +38,15 @@ extern "C"
 #include "paxos_types.h"
 #include <linux/udp.h>
 
-  void send_paxos_message(struct net_device* dev, eth_address* addr,
+#define ALLOC_VAL_POINTER(msg, name)                                           \
+  msg->u.name.value.paxos_value_val = pmalloc(msg->u.name.value.paxos_value_len)
+
+
+#define COPY_VAL_POINTER(dest, src, name)                                           \
+  memcpy(dest->u.name.value.paxos_value_val, src->u.name.value.paxos_value_val, src->u.name.value.paxos_value_len)
+
+
+void send_paxos_message(struct net_device* dev, eth_address* addr,
                           paxos_message* msg);
   void send_paxos_prepare(struct net_device* dev, eth_address* addr,
                           paxos_prepare* pp);
@@ -59,6 +67,7 @@ extern "C"
   void send_paxos_learner_hi(struct net_device* dev, eth_address* addr);
   void send_paxos_learner_del(struct net_device* dev, eth_address* addr);
   void send_paxos_acceptor_ok(struct net_device* dev, eth_address* addr);
+  paxos_message* copy_paxos_message(paxos_message* msg);
 #ifdef __cplusplus
 }
 #endif

@@ -76,10 +76,11 @@ static int __init
 static void __exit
             replica_exit(void)
 {
-  kdevchar_exit(kleaner_device);
-  if (replica != NULL)
-    evpaxos_replica_free(replica);
   evworkers_destroy_pool();
+  kdevchar_exit(kleaner_device);
+  if (replica != NULL) {
+    evpaxos_replica_free(replica);
+  }
   LOG_INFO("Module unloaded");
 }
 

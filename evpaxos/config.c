@@ -74,6 +74,7 @@ struct option options[] = {
   { "proposer-preexec-window", &paxos_config.proposer_preexec_window,
     option_integer },
   { "acceptor-trash-files", &paxos_config.trash_files, option_boolean },
+  { "acceptor-num-threads", &paxos_config.num_threads_in_pool, option_integer },
   { 0 }
 };
 

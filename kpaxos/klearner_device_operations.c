@@ -23,7 +23,7 @@ kset_message(char* msg, size_t size)
   }
   set_value_pointer_ahead_of_accepted(klearner_device.msg_buf[klearner_device.current_buf]);
 
-  paxos_log_debug("kset_message: size=%d", size);
+  paxos_log_debug("kset_message: size=%d\nmessage: %s", size, msg);
   klearner_device.msg_buf[klearner_device.current_buf]->value.paxos_value_len = size;
   memcpy(klearner_device.msg_buf[klearner_device.current_buf]->value.paxos_value_val, msg, size);
   klearner_device.current_buf = (klearner_device.current_buf + 1) % BUFFER_SIZE;
@@ -47,7 +47,9 @@ kdev_read(struct file* filep, char* buffer, size_t len, loff_t* offset)
   size_t llen = sizeof(struct user_msg) + msg_len;
   error_count = copy_to_user(buffer, (char*)(&msg_len), sizeof(size_t));
   error_count += copy_to_user(&buffer[sizeof(size_t)], (char*)klearner_device.msg_buf[klearner_device.first_buf]->value.paxos_value_val, msg_len);
-  paxos_log_info("Seding message to user space: error_count=%d, sizeof(size_t)=%d, msg_len=%d", error_count, sizeof(size_t), msg_len);
+  paxos_log_debug("Seding message to user space: error_count=%d, sizeof(size_t)=%d, msg_len=%d\nmessage: %s",
+    error_count, sizeof(size_t), msg_len,
+    klearner_device.msg_buf[klearner_device.first_buf]->value.paxos_value_val);
 
   if (error_count != 0) {
     paxerr("send fewer characters to the user");
