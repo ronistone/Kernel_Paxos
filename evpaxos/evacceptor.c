@@ -248,13 +248,33 @@ evacceptor_init_internal(int id, struct evpaxos_config* c, struct peers* p)
   acceptor->state = acceptor_new(id);
   acceptor->peers = p;
 
-  peers_add_subscription(p, PAXOS_PREPARE, evacceptor_handle_prepare_create_work, acceptor);
-  peers_add_subscription(p, PAXOS_ACCEPT, evacceptor_handle_accept_create_work, acceptor);
-  peers_add_subscription(p, PAXOS_REPEAT, evacceptor_handle_repeat_create_work, acceptor);
-  peers_add_subscription(p, PAXOS_TRIM, evacceptor_handle_trim_create_work, acceptor);
-  peers_add_subscription(p, PAXOS_LEARNER_HI, evacceptor_handle_hi_create_work, acceptor);
-  peers_add_subscription(p, PAXOS_LEARNER_DEL, evacceptor_handle_del_create_work, acceptor);
-
+  if(paxos_config.storage_backend == PAXOS_LMDB_STORAGE) {
+    peers_add_subscription(p, PAXOS_PREPARE,
+                           evacceptor_handle_prepare_create_work, acceptor);
+    peers_add_subscription(p, PAXOS_ACCEPT,
+                           evacceptor_handle_accept_create_work, acceptor);
+    peers_add_subscription(p, PAXOS_REPEAT,
+                           evacceptor_handle_repeat_create_work, acceptor);
+    peers_add_subscription(p, PAXOS_TRIM, evacceptor_handle_trim_create_work,
+                           acceptor);
+    peers_add_subscription(p, PAXOS_LEARNER_HI,
+                           evacceptor_handle_hi_create_work, acceptor);
+    peers_add_subscription(p, PAXOS_LEARNER_DEL,
+                           evacceptor_handle_del_create_work, acceptor);
+  } else {
+    peers_add_subscription(p, PAXOS_PREPARE,
+                           evacceptor_handle_prepare, acceptor);
+    peers_add_subscription(p, PAXOS_ACCEPT,
+                           evacceptor_handle_accept, acceptor);
+    peers_add_subscription(p, PAXOS_REPEAT,
+                           evacceptor_handle_repeat, acceptor);
+    peers_add_subscription(p, PAXOS_TRIM, evacceptor_handle_trim_create_work,
+                           acceptor);
+    peers_add_subscription(p, PAXOS_LEARNER_HI,
+                           evacceptor_handle_hi, acceptor);
+    peers_add_subscription(p, PAXOS_LEARNER_DEL,
+                           evacceptor_handle_del, acceptor);
+  }
   setup_timer(&acceptor->stats_ev, send_acceptor_state,
               (unsigned long)acceptor);
   acceptor->stats_interval = (struct timeval){ 1, 0 };

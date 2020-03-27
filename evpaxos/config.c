@@ -77,6 +77,8 @@ struct option options[] = {
   { "acceptor-trash-files", &paxos_config.trash_files, option_boolean },
   { "acceptor-num-threads", &paxos_config.num_threads_in_pool, option_integer },
   { "storage-backend", &paxos_config.storage_backend, option_storage },
+  { "storage-wait-timeout", &paxos_config.storage_wait_timeout, option_integer },
+  { "char-device-buffer-size", &paxos_config.char_device_buffer_size, option_integer },
   { 0 }
 };
 

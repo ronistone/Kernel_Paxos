@@ -71,19 +71,25 @@ static paxos_accepted* storage_get(struct lmdb_storage lmdbStorage, uint32_t id)
 
   if(lmdb_storage_tx_begin( &lmdbStorage) != 0){
     printf("Fail to open transaction!\n");
+    return NULL;
   }
   paxos_accepted* out = malloc(sizeof(paxos_accepted));
   memset(out, 0, sizeof(paxos_accepted));
   if(lmdb_storage_get( &lmdbStorage, id, out)!=1){
 //    printf("Fail to get in storage!\n");
     lmdb_storage_tx_abort( &lmdbStorage);
-    return NULL;
+    goto error_storage_get;
   }
 
   if(lmdb_storage_tx_commit( &lmdbStorage) != 0){
     printf("Fail to commit transaction!\n");
+    goto error_storage_get;
   }
   return out;
+
+  error_storage_get:
+  free(out);
+  return NULL;
 }
 
 static int storage_put(struct lmdb_storage lmdbStorage, paxos_accepted* accepted){

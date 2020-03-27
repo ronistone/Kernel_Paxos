@@ -62,6 +62,7 @@ extern "C"
     /* General configuration */
     paxos_log_level verbosity;
     int             tcp_nodelay;
+    int             char_device_buffer_size;
 
     /* Learner */
     int learner_catch_up;
@@ -74,6 +75,7 @@ extern "C"
     paxos_storage_backend storage_backend;
     int                   trash_files;
     int                   num_threads_in_pool;
+    int                   storage_wait_timeout;
 
     /* lmdb storage configuration */
     int    lmdb_sync;

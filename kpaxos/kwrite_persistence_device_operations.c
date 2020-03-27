@@ -28,6 +28,7 @@ ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
     if (!writePersistenceDevice.working)
         return 0;
 
+    kernel_device_callback* callback = writePersistenceDevice.callback_buf[writePersistenceDevice.first_buf];
     paxos_accepted* accepted = writePersistenceDevice.msg_buf[writePersistenceDevice.first_buf];
     llen = sizeof(paxos_accepted) + accepted->value.paxos_value_len;
     error_count_buffer_id = copy_to_user(buffer, &writePersistenceDevice.first_buf, sizeof(int));
@@ -43,6 +44,12 @@ ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
     } else {
       writePersistenceDevice.first_buf = (writePersistenceDevice.first_buf + 1) % BUFFER_SIZE;
     }
+
+    if(callback != NULL && !callback -> is_done) {
+      callback->response = accepted;
+      wake_up(&(callback -> response_wait));
+    }
+
     return llen;
 }
 
@@ -75,7 +82,7 @@ int write_persistence_release(struct inode *inodep, struct file *filep) {
 kernel_device_callback* write_persistence_add_message(const char* msg, size_t size) {
   if (atomic_read(&(writePersistenceDevice.used_buf)) >= BUFFER_SIZE) {
     //if (printk_ratelimit())
-      paxos_log_info("Read Persistence Buffer is full! Lost a value");
+      paxos_log_info("Write Persistence Buffer is full! Lost a value");
     return NULL;
   }
   atomic_inc(&(writePersistenceDevice.used_buf));

@@ -9,7 +9,7 @@
 #include "workers_pool.h"
 #include "paxos.h"
 
-#define BUFFER_SIZE 1000
+#define BUFFER_SIZE paxos_config.char_device_buffer_size
 
 
 typedef struct kernel_device_message {
