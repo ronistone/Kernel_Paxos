@@ -58,17 +58,19 @@ Vagrant.configure(2) do |config|
     vb.memory = "2048"
   end
 
+    config.ssh.forward_agent = true
+
   config.vm.define "paxos_1" do |paxos_1|
        paxos_1.vm.hostname = "paxos1"
-       paxos_1.vm.network "private_network", ip: "192.168.33.10"
+       paxos_1.vm.network "public_network"
   end
   config.vm.define "paxos_2" do |paxos_2|
        paxos_2.vm.hostname = "paxos2"
-       paxos_2.vm.network "private_network", ip: "192.168.33.11"
+       paxos_2.vm.network "public_network"
   end
   config.vm.define "paxos_3" do |paxos_3|
        paxos_3.vm.hostname = "paxos3"
-       paxos_3.vm.network "private_network", ip: "192.168.33.12"
+       paxos_3.vm.network "public_network"
   end
   #
   # View the documentation for the provider you are using for more
