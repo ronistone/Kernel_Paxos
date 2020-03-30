@@ -35,15 +35,15 @@ ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
     error_count = copy_to_user(&buffer[sizeof(int)], (char *)(accepted), sizeof(paxos_accepted) + accepted->value.paxos_value_len);
 
     paxos_log_debug("The message sended to buffer[%zu]: %s", accepted -> iid, &buffer[sizeof(int) + sizeof(paxos_accepted)]);
-    atomic_dec(&(writePersistenceDevice.used_buf));
 
-    if (error_count != 0 || error_count_buffer_id != 0 ) {
-        paxos_log_error("send fewer characters to the user: error_count=%d, error_count_value=%d, error_count_buffer_id=%d",
+  if (error_count != 0 || error_count_buffer_id != 0 ) {
+    paxos_log_error("send fewer characters to the user: error_count=%d, error_count_value=%d, error_count_buffer_id=%d",
             error_count, error_count_value, error_count_buffer_id);
-        return -1;
-    } else {
-      writePersistenceDevice.first_buf = (writePersistenceDevice.first_buf + 1) % BUFFER_SIZE;
-    }
+    return -1;
+  } else {
+    writePersistenceDevice.first_buf = (writePersistenceDevice.first_buf + 1) % BUFFER_SIZE;
+    atomic_dec(&(writePersistenceDevice.used_buf));
+  }
 
     if(callback != NULL && !callback -> is_done) {
       callback->response = accepted;
@@ -81,8 +81,8 @@ int write_persistence_release(struct inode *inodep, struct file *filep) {
 
 kernel_device_callback* write_persistence_add_message(const char* msg, size_t size) {
   if (atomic_read(&(writePersistenceDevice.used_buf)) >= BUFFER_SIZE) {
-    //if (printk_ratelimit())
-      paxos_log_info("Write Persistence Buffer is full! Lost a value");
+//    if (printk_ratelimit())
+      paxos_log_debug("Write Persistence Buffer is full! Lost a value");
     return NULL;
   }
   atomic_inc(&(writePersistenceDevice.used_buf));

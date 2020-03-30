@@ -4,7 +4,7 @@
 #include "kernel_client.h"
 #include "stats.h"
 
-#define TIMEOUT_US 1000000
+#define TIMEOUT_US 10000000
 
 extern void update_stats(struct stats* stats, struct timeval delivered,
                          size_t size);

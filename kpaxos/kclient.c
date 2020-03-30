@@ -12,7 +12,7 @@
 #include <linux/vmalloc.h>
 #include <net/sock.h>
 
-#define TIMEOUT_US 1000000
+#define TIMEOUT_US 10000000
 
 const char* MOD_NAME = "KClient";
 

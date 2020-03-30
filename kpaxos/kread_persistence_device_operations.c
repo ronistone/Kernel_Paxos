@@ -39,10 +39,10 @@ ssize_t read_persistence_read(struct file *filep, char *buffer, size_t len,
   if (error_count_accepted != 0 || error_count_buffer_id != 0) {
     paxerr("send fewer characters to the user");
     return -1;
-  }/* else {
+  } else {
     readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
-    atomic_dec(&(readPersistenceDevice_.used_buf));
-  }*/
+//    atomic_dec(&(readPersistenceDevice_.used_buf));
+  }
   return llen;
 }
 
@@ -76,7 +76,7 @@ ssize_t read_persistence_write(struct file *filep, const char *buffer, size_t le
     error_count_value = copy_from_user(accepted -> value.paxos_value_val, &buffer[sizeof(int) + sizeof(paxos_accepted)], accepted -> value.paxos_value_len);
   }
 
-  readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
+//  readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
   atomic_dec(&(readPersistenceDevice_.used_buf));
 
   if ( error_count_value != 0 ) {
@@ -115,7 +115,7 @@ int read_persistence_release(struct inode *inodep, struct file *filep) {
 kernel_device_callback* read_persistence_add_message(const char* msg, size_t size) {
   if (atomic_read(&(readPersistenceDevice_.used_buf)) >= BUFFER_SIZE) {
     //if (printk_ratelimit())
-      paxos_log_info("Read Persistence Buffer is full! Lost a value");
+      paxos_log_debug("Read Persistence Buffer is full! Lost a value");
     return NULL;
   }
   atomic_inc(&(readPersistenceDevice_.used_buf));
