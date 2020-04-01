@@ -91,7 +91,7 @@ lmdb_storage_close(struct lmdb_storage *s)
 //}
 
 static int
-lmdb_storage_init(struct lmdb_storage* s, char* db_env_path)
+lmdb_storage_init(struct lmdb_storage* s, char* db_env_path, int mdb_nosync_enable)
 {
   int result;
   struct stat sb;
@@ -116,7 +116,7 @@ lmdb_storage_init(struct lmdb_storage* s, char* db_env_path)
     goto error;
   }
 
-  if ((result = mdb_env_open(env, db_env_path, 0, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) != 0) {
+  if ((result = mdb_env_open(env, db_env_path, mdb_nosync_enable? MDB_NOSYNC: 0, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) != 0) {
     printf("Could not open lmdb environment at %s. %s\n", db_env_path, mdb_strerror(result));
     goto error;
   }
@@ -155,7 +155,7 @@ lmdb_storage_init(struct lmdb_storage* s, char* db_env_path)
 }
 
 int
-lmdb_storage_open(struct lmdb_storage *s)
+lmdb_storage_open(struct lmdb_storage *s, int mdb_nosync_enable)
 {
   char* lmdb_env_path = NULL;
   struct stat sb;
@@ -175,7 +175,7 @@ lmdb_storage_open(struct lmdb_storage *s)
     goto error;
   }
 
-  if ((result = lmdb_storage_init(s, lmdb_env_path) != 0)) {
+  if ((result = lmdb_storage_init(s, lmdb_env_path, mdb_nosync_enable) != 0)) {
     printf("Failed to open DB handle\n");
   } else {
     printf("lmdb storage opened successfully\n");

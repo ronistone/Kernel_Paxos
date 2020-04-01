@@ -29,7 +29,7 @@ struct lmdb_storage
     int acceptor_id;
 };
 
-extern int      lmdb_storage_open(struct lmdb_storage *handle);
+extern int      lmdb_storage_open(struct lmdb_storage *handle, int mdb_nosync_enable);
 extern int      lmdb_storage_tx_begin(struct lmdb_storage *handle);
 extern int      lmdb_storage_tx_commit(struct lmdb_storage *handle);
 extern void     lmdb_storage_tx_abort(struct lmdb_storage *handle);

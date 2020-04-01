@@ -21,7 +21,7 @@
 #define LOG(isRead, fmt, args...)                                                \
   verbose? isRead? printf("READ: " fmt "\n", ##args): printf("WRITE: " fmt "\n", ##args): WHATEVER_VALUE
 
-static int stop = 0, verbose = 0;
+static int stop = 0, verbose = 0, mdb_nosync = 0;
 static int READ = 1;
 static int WRITE = 0;
 static const char *read_device_path, *write_device_path;
@@ -34,6 +34,8 @@ static void usage(const char *name) {
   printf("  %-30s%s\n", "-h, --help", "Output this message and exit");
   printf("  %-30s%s\n", "-r, --read-chardev_path #", "Kernel paxos lmdb query kernel device path");
   printf("  %-30s%s\n", "-w, --write-chardev_path #", "Kernel paxos lmdb write kernel device path");
+  printf("  %-30s%s\n", "-v, --verbose", "Verbose execution");
+  printf("  %-30s%s\n", "-m, --mdb-nosync", "Using lmdb nosync mode");
   exit(1);
 }
 
@@ -43,9 +45,10 @@ static void check_args(int argc, char *argv[]) {
                                     {"read-chardev-path", required_argument, 0, 'r'},
                                     {"help", no_argument, 0, 'h'},
                                     {"verbose", no_argument, 0, 'v'},
+                                    {"mdb-nosync", no_argument, 0, 'm'},
                                     {0, 0, 0, 0}};
 
-  while ((opt = getopt_long(argc, argv, "w:r:hv", options, &idx)) != -1) {
+  while ((opt = getopt_long(argc, argv, "w:r:hvm", options, &idx)) != -1) {
     switch (opt) {
     case 'w':
       write_device_path = optarg;
@@ -55,6 +58,9 @@ static void check_args(int argc, char *argv[]) {
       break;
     case 'v':
       verbose = 1;
+      break;
+    case 'm':
+      mdb_nosync = 1;
       break;
     default:
       usage(argv[0]);
@@ -147,7 +153,7 @@ static void* generic_storage_thread(void* param) {
   const char *device_path = get_device_path(isRead);
 
   struct lmdb_storage lmdbStorage;
-  if (lmdb_storage_open( &lmdbStorage ) != 0) {
+  if (lmdb_storage_open( &lmdbStorage, mdb_nosync ) != 0) {
     LOG(isRead, "Fail to open storage");
     pthread_exit(0);
     return NULL;
