@@ -30,9 +30,11 @@ ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
 
     kernel_device_callback* callback = writePersistenceDevice.callback_buf[writePersistenceDevice.first_buf];
     paxos_accepted* accepted = writePersistenceDevice.msg_buf[writePersistenceDevice.first_buf];
+
     llen = sizeof(paxos_accepted) + accepted->value.paxos_value_len;
     error_count_buffer_id = copy_to_user(buffer, &writePersistenceDevice.first_buf, sizeof(int));
     error_count = copy_to_user(&buffer[sizeof(int)], (char *)(accepted), sizeof(paxos_accepted) + accepted->value.paxos_value_len);
+    llen += sizeof(int);
 
     paxos_log_debug("The message sended to buffer[%zu]: %s", accepted -> iid, &buffer[sizeof(int) + sizeof(paxos_accepted)]);
 

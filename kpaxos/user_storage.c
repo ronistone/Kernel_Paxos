@@ -21,6 +21,8 @@
 #define LOG(isRead, fmt, args...)                                                \
   verbose? isRead? printf("READ: " fmt "\n", ##args): printf("WRITE: " fmt "\n", ##args): WHATEVER_VALUE
 
+static const size_t max_message_size =
+  sizeof(paxos_accepted) + (sizeof(char) * MAX_PAXOS_VALUE_SIZE);
 static int stop = 0, verbose = 0, mdb_nosync = 0;
 static int READ = 1;
 static int WRITE = 0;
@@ -28,6 +30,7 @@ static const char *read_device_path, *write_device_path;
 static pthread_t read_thread, write_thread;
 
 const char *get_device_path(int isRead);
+void        log_found(const char* out);
 static void usage(const char *name) {
   printf("Usage: %s [options] \n", name);
   printf("Options:\n");
@@ -73,14 +76,12 @@ static void stop_execution(int signal) {
   printf("Finishing Threads...\n");
 }
 
-static paxos_accepted* storage_get(struct lmdb_storage lmdbStorage, uint32_t id){
+static int storage_get(struct lmdb_storage lmdbStorage, uint32_t id, char* out){
 
   if(lmdb_storage_tx_begin( &lmdbStorage) != 0){
     printf("Fail to open transaction!\n");
-    return NULL;
+    return 0;
   }
-  paxos_accepted* out = malloc(sizeof(paxos_accepted));
-  memset(out, 0, sizeof(paxos_accepted));
   if(lmdb_storage_get( &lmdbStorage, id, out)!=1){
 //    printf("Fail to get in storage!\n");
     lmdb_storage_tx_abort( &lmdbStorage);
@@ -91,20 +92,19 @@ static paxos_accepted* storage_get(struct lmdb_storage lmdbStorage, uint32_t id)
     printf("Fail to commit transaction!\n");
     goto error_storage_get;
   }
-  return out;
+  return 1;
 
   error_storage_get:
-  free(out);
-  return NULL;
+  return 0;
 }
 
-static int storage_put(struct lmdb_storage lmdbStorage, paxos_accepted* accepted){
+static int storage_put(struct lmdb_storage lmdbStorage, uint32_t id, char* message, size_t len){
   if(lmdb_storage_tx_begin( &lmdbStorage) != 0){
     printf("Fail to open transaction!\n");
     return 1;
   }
 
-  if(lmdb_storage_put( &lmdbStorage, accepted)!=0){
+  if(lmdb_storage_put( &lmdbStorage, id, message, len)!=0){
     printf("Fail to put in storage!\n");
     lmdb_storage_tx_abort( &lmdbStorage);
   }
@@ -117,35 +117,46 @@ static int storage_put(struct lmdb_storage lmdbStorage, paxos_accepted* accepted
   return 0;
 }
 
-static void process_write_message(struct lmdb_storage lmdbStorage, storage_value* message){
-  storage_put(lmdbStorage, message -> value);
+static void process_write_message(struct lmdb_storage lmdbStorage, char* message, size_t len){
+  uint32_t iid;
+  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  storage_put(lmdbStorage, iid, &message[sizeof(int)], len);
 }
 
-static void process_read_message(struct lmdb_storage lmdbStorage, storage_value* message, int fd){
+static void process_read_message(struct lmdb_storage lmdbStorage, char* message, size_t len, int fd){
   LOG(READ, "buscando no lmdb");
-  paxos_accepted* out = storage_get(lmdbStorage, message -> value -> iid);
+
+  uint32_t iid;
+  char out_message[max_message_size];
+  char out[max_message_size - sizeof(int)];
+
+  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  int response = storage_get(lmdbStorage, iid, out);
+
   LOG(READ, "busca no lmdb terminada");
-  storage_value out_message;
-  out_message.bufferId = message -> bufferId;
-  out_message.value = out;
-  if(out != NULL) {
-    LOG(READ, "found %d, sending to LKM\n", out -> iid);
-    char* msg = storage_value_to_buffer(&out_message);
-    write(fd, msg, sizeof(int) + sizeof(paxos_accepted) + out->value.paxos_value_len);
-    free(msg);
+
+  memcpy(out_message, message, sizeof(int));
+  memcpy(&out_message[sizeof(int)], out, max_message_size - sizeof(int));
+
+  if(response != 1) {
+    int value_len;
+    memcpy(&value_len, &out[5* sizeof(uint32_t)], sizeof(uint32_t));
+    log_found(out);
+    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted) + value_len);
   } else {
-    LOG(READ, "not found %d, sending not found to LKM\n", message -> value -> iid);
-    out = malloc(sizeof(paxos_accepted));
-    memset(out, 0, sizeof(paxos_accepted));
-    out_message.value = out;
-    char* msg = storage_value_to_buffer(&out_message);
-    write(fd, msg, sizeof(int) + sizeof(paxos_accepted) + out->value.paxos_value_len);
-    free(msg);
+    LOG(READ, "not found %u, sending not found to LKM\n", iid);
+    memset(&out_message[sizeof(int)], 0, sizeof(paxos_accepted));
+    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted));
   }
-  if(out -> value.paxos_value_val != NULL){
-    free( out -> value.paxos_value_val );
+}
+void
+log_found(const char* out)
+{
+  if(verbose) {
+    uint32_t out_iid;
+    memcpy(&out_iid, &out[sizeof(uint32_t)], sizeof(uint32_t));
+    LOG(READ, "found %u, sending to LKM\n", out_iid);
   }
-  free(out);
 }
 
 static void* generic_storage_thread(void* param) {
@@ -158,15 +169,14 @@ static void* generic_storage_thread(void* param) {
     pthread_exit(0);
     return NULL;
   }
-  int fd, bufferId;
+  int fd;
   struct pollfd polling;
   char *recv;
   paxos_accepted* accepted;
-  storage_value* message;
   int len = 0;
 
-  recv = malloc(sizeof(paxos_accepted) + (sizeof(char) * MAX_PAXOS_VALUE_SIZE));
-  accepted = malloc(sizeof(paxos_accepted) + (sizeof(char) * MAX_PAXOS_VALUE_SIZE));
+  recv = malloc(max_message_size);
+  accepted = malloc(max_message_size);
 
   LOG(isRead, "Open Device -> %s", device_path);
   fd = open(device_path, O_RDWR | O_NONBLOCK, 0);
@@ -183,26 +193,12 @@ static void* generic_storage_thread(void* param) {
         len = read(fd, recv, WHATEVER_VALUE);
 
         if (len) {
-
-          memcpy(&bufferId, recv, sizeof(int));
-          buffer_to_paxos_accepted(&recv[sizeof(int)], accepted);
-          message = malloc(sizeof(storage_value));
-          message -> bufferId = bufferId;
-          message -> value = accepted;
-
-          if( isRead ){
-            LOG(isRead, "Got this: bufferId[%d]: %d", bufferId, accepted->iid);
-          } else {
-            LOG(isRead, "Got this: bufferId[%d]: %d  --> %s   -> %p", bufferId, accepted->iid, accepted->value.paxos_value_val, accepted->value.paxos_value_val);
-          }
           countMessages++;
           if(isRead){
-            process_read_message(lmdbStorage, message, fd);
+            process_read_message(lmdbStorage, recv, len - sizeof(int), fd);
           } else {
-            process_write_message(lmdbStorage, message);
+            process_write_message(lmdbStorage, recv, len - sizeof(int));
           }
-          free(message -> value -> value.paxos_value_val);
-          free(message);
         }
       } else {
         LOG(isRead, "No read event");

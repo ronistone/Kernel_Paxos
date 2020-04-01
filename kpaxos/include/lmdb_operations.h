@@ -7,7 +7,6 @@
 
 typedef unsigned int uint32_t;
 
-//#include "paxos.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -34,12 +33,8 @@ extern int      lmdb_storage_tx_begin(struct lmdb_storage *handle);
 extern int      lmdb_storage_tx_commit(struct lmdb_storage *handle);
 extern void     lmdb_storage_tx_abort(struct lmdb_storage *handle);
 extern void     lmdb_storage_close(struct lmdb_storage *handle);
-extern int      lmdb_storage_put(struct lmdb_storage *handle, paxos_accepted* acc);
-extern int      lmdb_storage_get(struct lmdb_storage *handle, iid_t iid, paxos_accepted* out);
-
-extern void     buffer_to_paxos_accepted(char* buffer, paxos_accepted* out);
-extern char*    paxos_accepted_to_buffer(paxos_accepted* acc);
-extern char*    storage_value_to_buffer(storage_value* client);
+extern int      lmdb_storage_put(struct lmdb_storage *s, uint32_t id, char* value, size_t len);
+extern int      lmdb_storage_get(struct lmdb_storage *s, iid_t iid, char* out);
 
 
 #endif //KERNEL_PAXOS_PERSISTENCE_LMDB_OPERATIONS_H

@@ -9,51 +9,6 @@
 static const char* db_env_path = "/tmp/paxos";
 static size_t lmdb_mapsize = DEFAULT_SIZE;
 
-void
-buffer_to_paxos_accepted(char* buffer, paxos_accepted* out)
-{
-  memcpy(out, buffer, sizeof(paxos_accepted));
-  if (out->value.paxos_value_len > 0) {
-    out->value.paxos_value_val = malloc(out->value.paxos_value_len);
-    memcpy(out->value.paxos_value_val,
-           &buffer[sizeof(paxos_accepted)],
-           out->value.paxos_value_len);
-  } else {
-    out -> value.paxos_value_val = NULL;
-  }
-}
-
-char*
-paxos_accepted_to_buffer(paxos_accepted* acc)
-{
-  size_t len = acc->value.paxos_value_len;
-  char* buffer = malloc(sizeof(paxos_accepted) + len);
-  if (buffer == NULL)
-    return NULL;
-  memcpy(buffer, acc, sizeof(paxos_accepted));
-  if (len > 0) {
-    memcpy(&buffer[sizeof(paxos_accepted)], acc->value.paxos_value_val, len);
-  }
-  return buffer;
-}
-
-char*
-storage_value_to_buffer(storage_value* client)
-{
-  size_t accepted_len = client -> value -> value.paxos_value_len + sizeof(paxos_accepted);
-  char* buffer = malloc(sizeof(storage_value) + accepted_len);
-  if(buffer == NULL)
-    return NULL;
-  char* accepted = paxos_accepted_to_buffer(client -> value);
-  memcpy(buffer, &client -> bufferId, sizeof(int));
-  if(accepted != NULL) {
-    memcpy(&buffer[sizeof(int)], accepted, accepted_len);
-    free(accepted);
-  }
-
-
-  return buffer;
-}
 static int
 lmdb_compare_iid(const MDB_val* lhs, const MDB_val* rhs)
 {
@@ -80,15 +35,6 @@ lmdb_storage_close(struct lmdb_storage *s)
 //  free(s);
   printf("lmdb storage closed successfully\n");
 }
-
-//static struct lmdb_storage*
-//lmdb_storage_new(int acceptor_id)
-//{
-//  struct lmdb_storage* s = malloc(sizeof(struct lmdb_storage));
-//  memset(s, 0, sizeof(struct lmdb_storage));
-//  s->acceptor_id = acceptor_id;
-//  return s;
-//}
 
 static int
 lmdb_storage_init(struct lmdb_storage* s, char* db_env_path, int mdb_nosync_enable)
@@ -219,28 +165,31 @@ lmdb_storage_tx_abort(struct lmdb_storage *s)
 }
 
 int
-lmdb_storage_put(struct lmdb_storage *s, paxos_accepted* acc)
+lmdb_storage_put(struct lmdb_storage *s, uint32_t id, char* value, size_t len)
 {
   int result;
   MDB_val key, data;
-  char* buffer = paxos_accepted_to_buffer(acc); //TODO think way to remove this conversion, because paxos_accepted come from kernel as buffer (char*). Maybe get the first sizeof(uint32_t) bytes
 
-  key.mv_data = &acc->iid;
+  key.mv_data = &id;
   key.mv_size = sizeof(iid_t);
 
-  data.mv_data = buffer;
-  data.mv_size = sizeof(paxos_accepted) + acc->value.paxos_value_len;
-
-//  printf("Writing %d\n", acc->iid);
+  data.mv_data = value;
+  data.mv_size = len;
 
   result = mdb_put(s->txn, s->dbi, &key, &data, 0);
-  free(buffer);
+  if(result == MDB_MAP_FULL) {
+    printf("PUT: MDB_MAP_FULL\n");
+  } else if(result == MDB_TXN_FULL) {
+    printf("PUT: MDB_TXN_FULL\n");
+  } else if(result != 0) {
+    printf("PUT: Error in put operation\n");
+  }
 
   return result;
 }
 
 int
-lmdb_storage_get(struct lmdb_storage *s, iid_t iid, paxos_accepted* out)
+lmdb_storage_get(struct lmdb_storage *s, iid_t iid, char* out)
 {
   int result;
   MDB_val key, data;
@@ -260,8 +209,12 @@ lmdb_storage_get(struct lmdb_storage *s, iid_t iid, paxos_accepted* out)
     return 0;
   }
 
-  buffer_to_paxos_accepted(data.mv_data, out);
-  assert(iid == out->iid);
+  memcpy(out, data.mv_data, data.mv_size);
+  uint32_t out_iid;
+  memcpy(&out_iid, &out[sizeof(uint32_t)], sizeof(uint32_t));
+
+//  printf("assert(%u == %u)\n", iid, out_iid);
+  assert(iid == out_iid);
 
   return 1;
 }

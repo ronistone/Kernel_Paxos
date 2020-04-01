@@ -257,6 +257,7 @@ client_free(struct client* cl)
 void
 client_submit_value(struct client* cl, int id)
 {
+//  prepare_clval(cl);
   struct client_value* val = cl->val;
   val->client_id = id;
   gettimeofday(&cl->nclients_time[id - cl->id], NULL);
