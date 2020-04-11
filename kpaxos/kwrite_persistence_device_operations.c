@@ -23,7 +23,7 @@ int write_persistence_open(struct inode *inodep, struct file *filep) {
 ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
                       loff_t *offset) {
     int error_count, error_count_value = 0, error_count_buffer_id;
-    size_t llen;
+    int llen;
 
     if (!writePersistenceDevice.working)
         return 0;
@@ -81,7 +81,7 @@ int write_persistence_release(struct inode *inodep, struct file *filep) {
     return 0;
 }
 
-kernel_device_callback* write_persistence_add_message(const char* msg, size_t size) {
+kernel_device_callback* write_persistence_add_message(const char* msg, int size) {
   if (atomic_read(&(writePersistenceDevice.used_buf)) >= BUFFER_SIZE) {
 //    if (printk_ratelimit())
       paxos_log_debug("Write Persistence Buffer is full! Lost a value");

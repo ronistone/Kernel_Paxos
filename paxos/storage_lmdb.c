@@ -86,22 +86,29 @@ lmdb_storage_get(void* handle, iid_t iid, paxos_accepted* out)
   //}
 
   if (!callback -> is_done &&
-      callback -> response -> iid == iid &&
-      callback->response->value.paxos_value_len > 0) {
+      callback -> response -> iid == iid) {
 
       memcpy(out, callback->response, sizeof(paxos_accepted));
       if (out->value.paxos_value_len > 0) {
         out->value.paxos_value_val = pmalloc(out->value.paxos_value_len);
         memcpy(out->value.paxos_value_val, callback->response->value.paxos_value_val, out->value.paxos_value_len);
+        paxos_log_debug("Paxos_accepted %d - [%d] -> {%d} = %s\n", callback -> buffer_id, callback->response->iid,
+                        callback->response->value.paxos_value_len, callback->response->value.paxos_value_val);
+      } else {
+        paxos_log_debug("Paxos_accepted %d - [%d] -> Without message value\n",
+                        callback->buffer_id, callback->response->iid);
       }
-
-      paxos_log_debug("Paxos_accepted %d - [%d] -> {%d} = %s\n", callback -> buffer_id, callback->response->iid,
-               callback->response->value.paxos_value_len, callback->response->value.paxos_value_val);
 
       callback -> is_done = 1;
       return 1;
   } else {
-        paxos_log_debug("Paxos_accepted %d - [%d] -> no Message", callback->buffer_id, callback->iid);
+    paxos_log_debug("is_done: %d,  response->iid: %u,  iid: %u,  value_len: %d",
+      callback -> is_done,
+      callback -> response -> iid,
+      iid,
+      callback->response->value.paxos_value_len
+    );
+    paxos_log_debug("Paxos_accepted %d - [%d] -> no Message", callback->buffer_id, callback->iid);
   }
 
   callback -> is_done = 1;
@@ -116,7 +123,7 @@ lmdb_storage_put(void* handle, paxos_accepted* acc)
     return 1;
   }
 
-  size_t len = sizeof(paxos_accepted) + acc->value.paxos_value_len;
+  int len = sizeof(paxos_accepted) + acc->value.paxos_value_len;
   char buffer[len];
 
   paxos_accepted_to_char_array(acc, buffer);

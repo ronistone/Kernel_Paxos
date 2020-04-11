@@ -193,7 +193,7 @@ proposer_receive_promise(struct proposer* p, paxos_promise* ack,
   }
 
   if (ack->ballot > inst->ballot) {
-    paxos_log_debug("Proposer: Instance %u preempted: ballot %d ack ballot %d",
+    paxos_log_debug("Proposer: Instance %u preempted: ballot %u ack ballot %u",
                     inst->iid, inst->ballot, ack->ballot);
     proposer_preempt(p, inst, out);
     return 1;
@@ -321,7 +321,7 @@ proposer_receive_preempted(struct proposer* p, paxos_preempted* ack,
 
   if (ack->ballot > inst->ballot) {
     paxos_log_debug("Proposer: Received N < prev_prop, Instance %u preempted: "
-                    "ballot %d ack ballot %d",
+                    "ballot %u ack ballot %u",
                     inst->iid, inst->ballot, ack->ballot);
     if (instance_has_promised_value(inst))
       paxos_value_free(inst->promised_value);

@@ -8,6 +8,6 @@
 #include "kernel_device.h"
 
 extern paxos_kernel_device*     createWritePersistenceDevice(void);
-extern kernel_device_callback*  write_persistence_add_message(const char* msg, size_t size);
+extern kernel_device_callback*  write_persistence_add_message(const char* msg, int size);
 
 #endif //KERNEL_PAXOS_PERSISTENCE_WRITE_PERSISTENCE_DEVICE_OPERATIONS_H

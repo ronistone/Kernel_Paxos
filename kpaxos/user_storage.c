@@ -117,9 +117,23 @@ static int storage_put(struct lmdb_storage lmdbStorage, uint32_t id, char* messa
   return 0;
 }
 
-static void process_write_message(struct lmdb_storage lmdbStorage, char* message, size_t len){
+static void process_write_message(struct lmdb_storage lmdbStorage, char* message, int len){
   uint32_t iid;
   memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  if(verbose) {
+    int value_size;
+    memcpy(&value_size, &message[sizeof(int) + (6* sizeof(uint32_t))], sizeof(int));
+    int i;
+    // TODO descobrir porque esse valor está vindo com valor invalido
+    LOG(READ, "Putting %u in the storage with size = %d", iid, value_size);
+    for(i=0;i< sizeof(int) + len;i++){
+      printf("%u ", message[i]);
+    }
+    for(i=0;i< sizeof(int) + len;i++){
+      printf("%c ", message[i]);
+    }
+    printf("\n");
+  }
   storage_put(lmdbStorage, iid, &message[sizeof(int)], len);
 }
 
@@ -131,6 +145,7 @@ static void process_read_message(struct lmdb_storage lmdbStorage, char* message,
   char out[max_message_size - sizeof(int)];
 
   memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  LOG(READ, "===> searching for %u", iid);
   int response = storage_get(lmdbStorage, iid, out);
 
   LOG(READ, "busca no lmdb terminada");
@@ -138,9 +153,9 @@ static void process_read_message(struct lmdb_storage lmdbStorage, char* message,
   memcpy(out_message, message, sizeof(int));
   memcpy(&out_message[sizeof(int)], out, max_message_size - sizeof(int));
 
-  if(response != 1) {
+  if(response != 0) {
     int value_len;
-    memcpy(&value_len, &out[5* sizeof(uint32_t)], sizeof(uint32_t));
+    memcpy(&value_len, &out[6* sizeof(uint32_t)], sizeof(int));
     log_found(out);
     write(fd, out_message, sizeof(int) + sizeof(paxos_accepted) + value_len);
   } else {
@@ -185,9 +200,10 @@ static void* generic_storage_thread(void* param) {
   if (fd > 0) {
     polling.fd = fd;
     polling.events = POLLIN;
-    while (!stop) {
-      LOG(isRead, "Check write device...");
+  while (!stop) {
+      LOG(isRead, "Check device...");
       poll(&polling, 1, 2000);
+      LOG(isRead, "exit poll");
       if (polling.revents & POLLIN) {
 
         len = read(fd, recv, WHATEVER_VALUE);

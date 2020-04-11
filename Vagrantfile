@@ -9,6 +9,15 @@
 
 VM_NAME = 'Kernel_Paxos'
 
+cluster = {
+    "proposer1" => { :ip => "192.168.0.90", :cpus => 1, :mem => 1024 },
+    "acceptor1" => { :ip => "192.168.0.91", :cpus => 1, :mem => 1024 },
+    "acceptor2" => { :ip => "192.168.0.92", :cpus => 1, :mem => 1024 },
+    "acceptor3" => { :ip => "192.168.0.93", :cpus => 1, :mem => 1024 },
+    "learner1" => { :ip => "192.168.0.94", :cpus => 1, :mem => 1024 },
+    "learner2" => { :ip => "192.168.0.95", :cpus => 1, :mem => 1024 },
+}
+
 Vagrant.configure(2) do |config|
   # The most common configuration options are documented and commented below.
   # For a complete reference, please see the online documentation at
@@ -55,23 +64,17 @@ Vagrant.configure(2) do |config|
   #
   #   # Customize the amount of memory on the VM:
 #     vb.name = VM_NAME
-    vb.memory = "2048"
+    vb.memory = "1028"
+    vb.cpus = 1
   end
 
-    config.ssh.forward_agent = true
+    cluster.each_with_index do |(hostname, info), index|
+        config.vm.define hostname do |paxos|
+             paxos.vm.hostname = hostname
+             paxos.vm.network "public_network", ip:"#{info[:ip]}"
+        end
+    end
 
-  config.vm.define "paxos_1" do |paxos_1|
-       paxos_1.vm.hostname = "paxos1"
-       paxos_1.vm.network "public_network"
-  end
-  config.vm.define "paxos_2" do |paxos_2|
-       paxos_2.vm.hostname = "paxos2"
-       paxos_2.vm.network "public_network"
-  end
-  config.vm.define "paxos_3" do |paxos_3|
-       paxos_3.vm.hostname = "paxos3"
-       paxos_3.vm.network "public_network"
-  end
   #
   # View the documentation for the provider you are using for more
   # information on available options.
@@ -85,4 +88,18 @@ Vagrant.configure(2) do |config|
      sudo sh -c 'mkdir /var/crash || echo -e "\n\nkernel.core_pattern = /var/crash/core.%t.%p\nkernel.panic=10\nkernel.unknown_nmi_panic=1" >> /etc/sysctl.conf '
      sudo ln -s /usr/share/zoneinfo/Brazil/East /etc/localtime  -f
    SHELL
+
+ # default router
+ config.vm.provision "shell",
+   run: "always",
+   inline: "route add default gw 192.168.0.1"
+
+ # delete default gw on eth0
+ config.vm.provision "shell",
+   run: "always",
+   inline: "eval `route -n | awk '{ if ($8 ==\"eth0\" && $2 != \"0.0.0.0\") print \"route del default gw \" $2; }'`"
+
 end
+
+
+

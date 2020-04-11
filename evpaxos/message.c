@@ -76,7 +76,7 @@ send_paxos_prepare(struct net_device* dev, eth_address* addr, paxos_prepare* pp)
   paxos_message msg = { .type = PAXOS_PREPARE, .u.prepare = *pp };
 
   send_paxos_message(dev, addr, &msg);
-  paxos_log_debug("Proposer: Send prepare for iid %d ballot %d", pp->iid,
+  paxos_log_debug("Proposer: Send prepare for iid %u ballot %u", pp->iid,
                   pp->ballot);
 }
 
@@ -85,7 +85,7 @@ send_paxos_promise(struct net_device* dev, eth_address* addr, paxos_promise* p)
 {
   paxos_message msg = { .type = PAXOS_PROMISE, .u.promise = *p };
   send_paxos_message(dev, addr, &msg);
-  paxos_log_debug("Acceptor: Send promise for iid %d ballot %d", p->iid,
+  paxos_log_debug("Acceptor: Send promise for iid %u ballot %u", p->iid,
                   p->ballot);
 }
 
@@ -94,7 +94,7 @@ send_paxos_accept(struct net_device* dev, eth_address* addr, paxos_accept* pa)
 {
   paxos_message msg = { .type = PAXOS_ACCEPT, .u.accept = *pa };
   send_paxos_message(dev, addr, &msg);
-  paxos_log_debug("Proposer: Send accept for iid %d ballot %d", pa->iid,
+  paxos_log_debug("Proposer: Send accept for iid %u ballot %u", pa->iid,
                   pa->ballot);
 }
 
@@ -104,7 +104,7 @@ send_paxos_accepted(struct net_device* dev, eth_address* addr,
 {
   paxos_message msg = { .type = PAXOS_ACCEPTED, .u.accepted = *p };
   send_paxos_message(dev, addr, &msg);
-  paxos_log_debug("Acceptor: Send accepted for inst %d ballot %d", p->iid,
+  paxos_log_debug("Acceptor: Send accepted for inst %u ballot %u", p->iid,
                   p->ballot);
 }
 
@@ -114,7 +114,7 @@ send_paxos_preempted(struct net_device* dev, eth_address* addr,
 {
   paxos_message msg = { .type = PAXOS_PREEMPTED, .u.preempted = *p };
   send_paxos_message(dev, addr, &msg);
-  paxos_log_debug("Acceptor Send preempted for inst %d ballot %d", p->iid,
+  paxos_log_debug("Acceptor Send preempted for inst %u ballot %u", p->iid,
                   p->ballot);
 }
 
@@ -324,7 +324,7 @@ print_paxos_message(paxos_message* message)
 char*
 paxos_accepted_to_char_array(paxos_accepted* acc, char* buffer)
 {
-  size_t len = acc->value.paxos_value_len;
+  int len = acc->value.paxos_value_len;
 //  char* buffer = malloc(sizeof(paxos_accepted) + len);
   if (buffer == NULL) {
     return NULL;

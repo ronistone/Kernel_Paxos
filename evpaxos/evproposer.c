@@ -60,6 +60,7 @@ proposer_preexecute(struct evproposer* p)
   int           i;
   paxos_prepare pr;
   int           count = p->preexec_window - proposer_prepared_count(p->state);
+  memset(&pr, 0, sizeof(paxos_prepare));
 
   if (count <= 0)
     return;
