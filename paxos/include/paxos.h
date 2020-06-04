@@ -108,6 +108,7 @@ extern "C"
   void         paxos_log_error(const char* format, ...);
   void         paxos_log_info(const char* format, ...);
   void         paxos_log_debug(const char* format, ...);
+  void         print_paxos_accepted(paxos_accepted* accepted, char* prefix);
   void         clearPaxosAccepted(paxos_accepted* accepted);
   void         set_value_pointer_ahead_of_accepted(paxos_accepted* accepted);
 
