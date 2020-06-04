@@ -36,6 +36,7 @@ ssize_t read_persistence_read(struct file *filep, char *buffer, size_t len,
 
   paxos_log_debug("Read Persistence Device char: read %zu bytes!", llen);
 
+  paxos_log_info("READ REQUEST BUFFER ID: %d", readPersistenceDevice_.first_buf);
   if (error_count_accepted != 0 || error_count_buffer_id != 0) {
     paxerr("send fewer characters to the user");
     return -1;
@@ -60,6 +61,8 @@ ssize_t read_persistence_write(struct file *filep, const char *buffer, size_t le
     goto error;
   }
 
+  paxos_log_info("READ RESPONSE TO BUFFER ID: %d", buffer_id);
+
   kernel_device_callback* callback = readPersistenceDevice_.callback_buf[buffer_id];
   paxos_accepted* accepted = callback -> response;
   clearPaxosAccepted(callback -> response);
@@ -78,6 +81,8 @@ ssize_t read_persistence_write(struct file *filep, const char *buffer, size_t le
 
 //  readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
   atomic_dec(&(readPersistenceDevice_.used_buf));
+
+  print_paxos_accepted(accepted, "READ RESPONSE");
 
   if ( error_count_value != 0 ) {
     goto error;

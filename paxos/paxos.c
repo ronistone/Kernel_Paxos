@@ -187,6 +187,19 @@ clearPaxosAccepted(paxos_accepted* accepted) {
   memset(accepted -> value.paxos_value_val, 0, MAX_PAXOS_VALUE_SIZE);
 }
 
+void print_paxos_accepted(paxos_accepted* accepted, char* prefix) {
+  paxos_log_info("%s: Paxos Accepted { "
+                 "aid: %u, "
+                 "iid: %d, "
+                 "promise_iid: %u, "
+                 "ballot: %u, "
+                 "value_ballot: %u, "
+                 "value: { "
+                 " paxos_value_len: %d"
+                 "}", prefix, accepted -> aid, accepted->iid, accepted->promise_iid,
+                 accepted->ballot, accepted->value_ballot, accepted->value.paxos_value_len);
+}
+
 void set_value_pointer_ahead_of_accepted(paxos_accepted* accepted) {
   if( accepted != NULL ) {
     accepted -> value.paxos_value_val = (char*)(accepted + sizeof(paxos_accepted));

@@ -135,7 +135,7 @@ lmdb_storage_put(void* handle, paxos_accepted* acc)
   }
 
   // TODO validate if put need to validate success
-  int wait_response = wait_event_timeout(callback->response_wait, callback->response != NULL, paxos_config.storage_wait_timeout);
+  int wait_response = wait_event_timeout(callback->response_wait, callback->response->iid != 0, paxos_config.storage_wait_timeout);
   //if (printk_ratelimit()) {
   if (wait_response == 0) {
     paxos_log_info("Wait Response: Timeout and condition is false");
@@ -145,7 +145,7 @@ lmdb_storage_put(void* handle, paxos_accepted* acc)
     paxos_log_debug("Wait Response: Condition is true with time left = %d", wait_response);
   }
   //}
-
+  print_paxos_accepted(callback->response, "STORAGE_WAITER_THREAD");
   callback -> is_done = 1;
 
   return 0;
