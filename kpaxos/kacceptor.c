@@ -5,6 +5,7 @@
 #include <linux/time.h>
 #include <linux/udp.h>
 #include <net/sock.h>
+#include <linux/vmalloc.h>
 
 #include "evpaxos.h"
 #include "evworkers.h"
