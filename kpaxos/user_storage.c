@@ -30,7 +30,7 @@ static const char *read_device_path, *write_device_path;
 static pthread_t read_thread, write_thread;
 
 const char *get_device_path(int isRead);
-void        log_found(const char* out);
+void        log_found(paxos_accepted* out, char* message);
 static void usage(const char *name) {
   printf("Usage: %s [options] \n", name);
   printf("Options:\n");
@@ -118,14 +118,15 @@ static int storage_put(struct lmdb_storage lmdbStorage, uint32_t id, char* messa
 }
 
 static void process_write_message(struct lmdb_storage lmdbStorage, char* message, int len){
-  uint32_t iid;
-  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  paxos_accepted* accepted_to_write = (paxos_accepted*)&message[sizeof(int)];
+
+//  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
   if(verbose) {
     int value_size;
     memcpy(&value_size, &message[sizeof(int) + (6* sizeof(uint32_t))], sizeof(int));
     int i;
     // TODO descobrir porque esse valor está vindo com valor invalido
-    LOG(READ, "Putting %u in the storage with size = %d", iid, value_size);
+    LOG(READ, "Putting %u in the storage with size = %d", accepted_to_write->iid, accepted_to_write->value.paxos_value_len);
     for(i=0;i< sizeof(int) + len;i++){
       printf("%u ", message[i]);
     }
@@ -134,19 +135,20 @@ static void process_write_message(struct lmdb_storage lmdbStorage, char* message
     }
     printf("\n");
   }
-  storage_put(lmdbStorage, iid, &message[sizeof(int)], len);
+  storage_put(lmdbStorage, accepted_to_write->iid, &message[sizeof(int)], len);
 }
 
 static void process_read_message(struct lmdb_storage lmdbStorage, char* message, size_t len, int fd){
   LOG(READ, "buscando no lmdb");
 
-  uint32_t iid;
+  paxos_accepted* accepted_to_read = (paxos_accepted*)&message[sizeof(int)];
+  paxos_accepted* accepted_response;
   char out_message[max_message_size];
   char out[max_message_size - sizeof(int)];
 
-  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
-  LOG(READ, "===> searching for %u", iid);
-  int response = storage_get(lmdbStorage, iid, out);
+//  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
+  LOG(READ, "===> searching for %u", accepted_to_read->iid);
+  int response = storage_get(lmdbStorage, accepted_to_read->iid, out);
 
   LOG(READ, "busca no lmdb terminada");
 
@@ -154,23 +156,32 @@ static void process_read_message(struct lmdb_storage lmdbStorage, char* message,
   memcpy(&out_message[sizeof(int)], out, max_message_size - sizeof(int));
 
   if(response != 0) {
-    int value_len;
-    memcpy(&value_len, &out[6* sizeof(uint32_t)], sizeof(int));
-    log_found(out);
-    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted) + value_len);
+    accepted_response = (paxos_accepted*) out;
+    log_found(accepted_response, out);
+    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted) + accepted_response->value.paxos_value_len);
   } else {
-    LOG(READ, "not found %u, sending not found to LKM\n", iid);
+    LOG(READ, "not found %u, sending not found to LKM\n", accepted_to_read->iid);
     memset(&out_message[sizeof(int)], 0, sizeof(paxos_accepted));
     write(fd, out_message, sizeof(int) + sizeof(paxos_accepted));
   }
 }
 void
-log_found(const char* out)
+log_found(paxos_accepted* out, char* message)
 {
   if(verbose) {
-    uint32_t out_iid;
-    memcpy(&out_iid, &out[sizeof(uint32_t)], sizeof(uint32_t));
-    LOG(READ, "found %u, sending to LKM\n", out_iid);
+    int i;
+    int len = sizeof(paxos_accepted) + out -> value.paxos_value_len;
+    printf("\n=============================================================\n");
+    LOG(READ, "found %u, sending to LKM\n", out->iid);
+
+    LOG(READ, "Reading %u in the storage with size = %d", out->iid, out->value.paxos_value_len);
+    for(i=0;i< sizeof(int) + len;i++){
+      printf("%u, ", message[i]);
+    }
+    for(i=0;i< sizeof(int) + len;i++){
+      printf("%c, ", message[i]);
+    }
+    printf("\n=============================================================\n");
   }
 }
 
@@ -201,9 +212,9 @@ static void* generic_storage_thread(void* param) {
     polling.fd = fd;
     polling.events = POLLIN;
   while (!stop) {
-      LOG(isRead, "Check device...");
+//      LOG(isRead, "Check device...");
       poll(&polling, 1, 2000);
-      LOG(isRead, "exit poll");
+//      LOG(isRead, "exit poll");
       if (polling.revents & POLLIN) {
 
         len = read(fd, recv, WHATEVER_VALUE);

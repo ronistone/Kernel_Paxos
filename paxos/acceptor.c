@@ -116,10 +116,21 @@ acceptor_receive_accept(struct acceptor* a, paxos_accept* req,
   int found = storage_get_record(&a->store, req->iid, &acc);
   if (!found || acc.ballot <= req->ballot) {
     paxos_accept_to_accepted(a->id, req, out);
+
+    print_paxos_accepted(&out->u.accepted, "WRITING");
     if (storage_put_record(&a->store, &(out->u.accepted)) != 0) {
       storage_tx_abort(&a->store);
       return 0;
     }
+    paxos_accepted read_test;
+    memset(&read_test, 0, sizeof(paxos_accepted));
+    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    memset(&read_test, 0, sizeof(paxos_accepted));
+    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    memset(&read_test, 0, sizeof(paxos_accepted));
+    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    print_paxos_accepted(&read_test, "READING");
+
   } else {
     paxos_accepted_to_preempted(a->id, &acc, out);
   }
