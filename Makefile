@@ -90,7 +90,7 @@ LMDBOP_OBJS := $(BUILD_DIR)/lmdb_operations.o
 
 EXTRA_CFLAGS:= -I$(PWD)/kpaxos/include -I$(PWD)/paxos/include -I$(PWD)/evpaxos/include -I$(HOME)/local/include
 EXTRALMDB_FLAG:= -llmdb
-EXTRASTORE_FLAG:= -lpthread
+EXTRASTORE_FLAG:= -pthread
 ccflags-y:= $(G_COMP) -Wall -Wno-declaration-after-statement -Wframe-larger-than=3100 -O3
 
 all: $(BUILD_DIR) kernel_app user_client user_learner user_storage
@@ -116,7 +116,7 @@ user_learner: $(USRL_OBJS)
 	$(CC) $(USR_FLAGS) $(EXTRA_CFLAGS) -o $(BUILD_DIR)/$@ $^
 
 user_storage: $(LMDBOP_OBJS) $(USRS_OBJS)
-	$(CC) $(USR_FLAGS) $(EXTRA_CFLAGS) $(EXTRASTORE_FLAG) $(EXTRALMDB_FLAG) -o $(BUILD_DIR)/$@ $^
+	$(CC) $(USR_FLAGS) $(EXTRA_CFLAGS) -o $(BUILD_DIR)/$@ $^ $(EXTRALMDB_FLAG) $(EXTRASTORE_FLAG)
 
 ###########################################################################
 clean:
