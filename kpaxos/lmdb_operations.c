@@ -176,7 +176,7 @@ lmdb_storage_put(struct lmdb_storage *s, uint32_t id, char* value, size_t len)
   data.mv_data = value;
   data.mv_size = len;
 
-  printf("Inserting iid: %u\n", id);
+//  printf("Inserting iid: %u\n", id);
 
   result = mdb_put(s->txn, s->dbi, &key, &data, 0);
   if(result == MDB_MAP_FULL) {
@@ -201,7 +201,7 @@ lmdb_storage_get(struct lmdb_storage *s, iid_t iid, char* out)
   key.mv_data = &iid;
   key.mv_size = sizeof(iid_t);
 
-  printf("Searching for accepted with iid=%u\n", iid);
+//  printf("Searching for accepted with iid=%u\n", iid);
 
   if ((result = mdb_get(s->txn, s->dbi, &key, &data)) != 0) {
     if (result == MDB_NOTFOUND) {
