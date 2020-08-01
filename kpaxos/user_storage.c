@@ -127,13 +127,6 @@ static void process_write_message(struct lmdb_storage lmdbStorage, char* message
     int i;
     // TODO descobrir porque esse valor está vindo com valor invalido
     LOG(READ, "Putting %u in the storage with size = %d", accepted_to_write->iid, accepted_to_write->value.paxos_value_len);
-    for(i=0;i< sizeof(int) + len;i++){
-      printf("%u ", message[i]);
-    }
-    for(i=0;i< sizeof(int) + len;i++){
-      printf("%c ", message[i]);
-    }
-    printf("\n");
   }
   storage_put(lmdbStorage, accepted_to_write->iid, &message[sizeof(int)], len);
 }
