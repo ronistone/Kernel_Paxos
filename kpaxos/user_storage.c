@@ -28,6 +28,7 @@ static int READ = 1;
 static int WRITE = 0;
 static const char *read_device_path, *write_device_path;
 static pthread_t read_thread, write_thread;
+static struct lmdb_storage lmdbStorage;
 
 const char *get_device_path(int isRead);
 void        log_found(paxos_accepted* out, char* message);
@@ -182,12 +183,12 @@ static void* generic_storage_thread(void* param) {
   int isRead = *((int*)param);
   const char *device_path = get_device_path(isRead);
 
-  struct lmdb_storage lmdbStorage;
-  if (lmdb_storage_open( &lmdbStorage, mdb_nosync ) != 0) {
-    LOG(isRead, "Fail to open storage");
-    pthread_exit(0);
-    return NULL;
-  }
+//  struct lmdb_storage lmdbStorage;
+//  if (lmdb_storage_open( &lmdbStorage, mdb_nosync ) != 0) {
+//    LOG(isRead, "Fail to open storage");
+//    pthread_exit(0);
+//    return NULL;
+//  }
   int fd;
   struct pollfd polling;
   char *recv;
@@ -227,7 +228,7 @@ static void* generic_storage_thread(void* param) {
     printf("\n\n===================================\n\n");
     printf("%d Messages received!\n", countMessages);
     printf("\n===================================\n\n");
-    lmdb_storage_close( &lmdbStorage);
+//    lmdb_storage_close( &lmdbStorage);
     close(fd);
   } else {
     LOG(isRead, "Error while opening the write storage chardev.");
@@ -248,12 +249,20 @@ const char *get_device_path(int isRead) {
 }
 
 static void run(){
+//    struct lmdb_storage lmdbStorage;
+    if (lmdb_storage_open( &lmdbStorage, mdb_nosync ) != 0) {
+      LOG(isRead, "Fail to open storage");
+      pthread_exit(0);
+      return NULL;
+    }
 
     pthread_create(&read_thread, NULL, generic_storage_thread, &READ);
     pthread_create(&write_thread, NULL, generic_storage_thread, &WRITE);
 
     pthread_join(read_thread, NULL);
     pthread_join(write_thread,NULL);
+
+  lmdb_storage_close( &lmdbStorage);
 }
 
 int main(int argc, char *argv[]) {
