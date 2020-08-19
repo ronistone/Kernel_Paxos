@@ -125,8 +125,6 @@ static void process_write_message(struct lmdb_storage lmdbStorage, char* message
   if(verbose) {
     int value_size;
     memcpy(&value_size, &message[sizeof(int) + (6* sizeof(uint32_t))], sizeof(int));
-    int i;
-    // TODO descobrir porque esse valor está vindo com valor invalido
     LOG(READ, "Putting %u in the storage with size = %d", accepted_to_write->iid, accepted_to_write->value.paxos_value_len);
   }
   storage_put(lmdbStorage, accepted_to_write->iid, &message[sizeof(int)], len);
@@ -249,11 +247,9 @@ const char *get_device_path(int isRead) {
 }
 
 static void run(){
-//    struct lmdb_storage lmdbStorage;
     if (lmdb_storage_open( &lmdbStorage, mdb_nosync ) != 0) {
-      LOG(isRead, "Fail to open storage");
-      pthread_exit(0);
-      return NULL;
+      printf("Fail to open storage");
+      return;
     }
 
     pthread_create(&read_thread, NULL, generic_storage_thread, &READ);
