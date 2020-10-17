@@ -65,6 +65,7 @@ In addition the aforementioned, there are little changes in the logic:
 You first need to compile everything. To compile, run `make`. Once compiled, all executables will be inside the folder `build`.
 
 To load a kernel module type `sudo insmod module_name.ko parameters`. <br>
+example: `sudo insmod ./build/kreplica.ko id=0 if_name=eth0`. <br>
 To unload it, `sudo rmmod module_name.ko`. <br>
 `module_name` is the name of the module.
 
