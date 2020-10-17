@@ -122,14 +122,14 @@ acceptor_receive_accept(struct acceptor* a, paxos_accept* req,
       storage_tx_abort(&a->store);
       return 0;
     }
-    paxos_accepted read_test;
-    memset(&read_test, 0, sizeof(paxos_accepted));
-    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
-    memset(&read_test, 0, sizeof(paxos_accepted));
-    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
-    memset(&read_test, 0, sizeof(paxos_accepted));
-    storage_get_record(&a->store, out->u.accepted.iid, &read_test);
-    print_paxos_accepted(&read_test, "READING");
+    // paxos_accepted read_test;
+    // memset(&read_test, 0, sizeof(paxos_accepted));
+    // storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    // memset(&read_test, 0, sizeof(paxos_accepted));
+    // storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    // memset(&read_test, 0, sizeof(paxos_accepted));
+    // storage_get_record(&a->store, out->u.accepted.iid, &read_test);
+    // print_paxos_accepted(&read_test, "READING");
 
   } else {
     paxos_accepted_to_preempted(a->id, &acc, out);

@@ -65,7 +65,9 @@ ssize_t write_persistence_write(struct file *filep, const char *buffer, size_t l
 
 unsigned int write_persistence_poll(struct file *file, poll_table *wait) {
     poll_wait(file, &(writePersistenceDevice.access_wait), wait);
-    if (atomic_read(&(writePersistenceDevice.used_buf)) > 0)
+    int used = atomic_read(&(writePersistenceDevice.used_buf));
+    paxos_log_info("READ: %d messages in buffer", used);
+    if (used > 0)
         return POLLIN;
 
     return 0;

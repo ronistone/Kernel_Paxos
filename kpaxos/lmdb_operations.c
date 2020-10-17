@@ -62,7 +62,9 @@ lmdb_storage_init(struct lmdb_storage* s, char* db_env_path, int mdb_nosync_enab
     goto error;
   }
 
-  if ((result = mdb_env_open(env, db_env_path, mdb_nosync_enable? MDB_NOSYNC: 0, S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) != 0) {
+  if ((result = mdb_env_open(env, db_env_path, 
+        (mdb_nosync_enable? MDB_NOSYNC : 0), 
+        S_IRUSR | S_IWUSR | S_IRGRP | S_IWGRP | S_IROTH)) != 0) {
     printf("Could not open lmdb environment at %s. %s\n", db_env_path, mdb_strerror(result));
     goto error;
   }
