@@ -68,20 +68,20 @@ lmdb_storage_get(void* handle, iid_t iid, paxos_accepted* out)
 
   kernel_device_callback* callback = read_persistence_add_message(buffer, len);
   if (callback == NULL) {
-    paxos_log_debug("Read Buffer full!\n");
+    paxos_log_info("Read Buffer full!\n");
     return 0;
   }
 
   int wait_response = wait_event_timeout(callback->response_wait, callback->response != NULL, paxos_config.storage_wait_timeout);
   //if (printk_ratelimit()) {
     if (wait_response == 0) {
-//      paxos_log_info("Wait Response: Timeout and condition is false");
+     paxos_log_info("Wait Response: Timeout and condition is false");
     } else if (wait_response == 1) {
-//      paxos_log_info("Wait Response: Timeout and condition is true");
+     paxos_log_info("Wait Response: Timeout and condition is true");
     } else if(callback->response != NULL) {
-//      paxos_log_info("Wait Response: Condition is true with time left = %d", wait_response);
+     paxos_log_info("Wait Response: Condition is true with time left = %d", wait_response);
     } else {
-      paxos_log_error("Wait Response: Condition is false with time left = %d", wait_response);
+      paxos_log_info("Wait Response: Condition is false with time left = %d", wait_response);
     }
   //}
 
@@ -130,7 +130,7 @@ lmdb_storage_put(void* handle, paxos_accepted* acc)
 
   kernel_device_callback* callback = write_persistence_add_message(buffer, len);
   if (callback == NULL) {
-    paxos_log_debug("Write Buffer full!\n");
+    paxos_log_info("Write Buffer full!\n");
     return 1;
   }
 
