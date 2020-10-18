@@ -18,6 +18,7 @@ static void usage(const char *name) {
   printf("  %-30s%s\n", "-w, --write-chardev_path #", "Kernel paxos lmdb write kernel device path");
   printf("  %-30s%s\n", "-v, --verbose", "Verbose execution");
   printf("  %-30s%s\n", "-m, --mdb-nosync", "Using lmdb nosync mode");
+  printf("  %-30s%s\n", "-b, --batch-size", "Batch size to get messages from the kernel");
   exit(1);
 }
 
@@ -28,9 +29,10 @@ static void check_args(int argc, char *argv[]) {
                                     {"help", no_argument, 0, 'h'},
                                     {"verbose", no_argument, 0, 'v'},
                                     {"mdb-nosync", no_argument, 0, 'm'},
+                                    {"batch-size", required_argument, 0, 'b'},
                                     {0, 0, 0, 0}};
 
-  while ((opt = getopt_long(argc, argv, "w:r:hvm", options, &idx)) != -1) {
+  while ((opt = getopt_long(argc, argv, "w:r:hvmb:", options, &idx)) != -1) {
     switch (opt) {
     case 'w':
       write_device_path = optarg;
@@ -43,6 +45,9 @@ static void check_args(int argc, char *argv[]) {
       break;
     case 'm':
       mdb_nosync = 1;
+      break;
+    case 'b':
+      batch_size = atoi(optarg);
       break;
     default:
       usage(argv[0]);
@@ -81,12 +86,16 @@ static void* generic_storage_thread(void* param) {
 //      LOG(isRead, "exit poll");
       if (polling.revents & POLLIN) {
 
-        len = read(fd, recv, WHATEVER_VALUE);
+        if(isRead) {
+          len = read(fd, recv, batch_size);
+        } else {
+          len = read(fd, recv, WHATEVER_VALUE);
+        }
 
         if (len) {
           countMessages++;
           if(isRead){
-            process_read_message(lmdbStorage, recv, len - sizeof(int), fd);
+            process_read_message(lmdbStorage, recv, len, fd);
           } else {
             process_write_message(lmdbStorage, recv, len - sizeof(int));
           }

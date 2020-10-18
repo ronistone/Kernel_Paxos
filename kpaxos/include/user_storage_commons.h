@@ -20,6 +20,7 @@
 #define LOG(isRead, fmt, args...)                                                \
   verbose? isRead? printf("READ: " fmt "\n", ##args): printf("WRITE: " fmt "\n", ##args): WHATEVER_VALUE
 
+extern int batch_size;
 extern int readCount;
 extern int readMissCount;
 extern int writeCount;

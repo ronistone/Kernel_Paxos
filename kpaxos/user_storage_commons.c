@@ -1,6 +1,6 @@
 #include "user_storage_commons.h"
 
-
+int batch_size = 1;
 int readCount = 0;
 int readMissCount = 0;
 int writeCount = 0;
@@ -73,32 +73,51 @@ void process_write_message(struct lmdb_storage lmdbStorage, char* message, int l
   storage_put(lmdbStorage, accepted_to_write->iid, &message[sizeof(int)], len);
 }
 
-void process_read_message(struct lmdb_storage lmdbStorage, char* message, size_t len, int fd){
+void process_read_message(struct lmdb_storage lmdbStorage, char* message, size_t num_msgs, int fd){
   LOG(READ, "buscando no lmdb");
 
-  paxos_accepted* accepted_to_read = (paxos_accepted*)&message[sizeof(int)];
-  paxos_accepted* accepted_response;
-  char out_message[max_message_size];
   char out[max_message_size - sizeof(int)];
+  char out_message[num_msgs * max_message_size];
+  int buffer_index = 0;
+  int response_index = 0;
+  int buffer_id;
+  paxos_accepted accepted_to_read, accepted_response;
 
-//  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
-  LOG(READ, "===> searching for %u", accepted_to_read->iid);
-  int response = storage_get(lmdbStorage, accepted_to_read->iid, out);
+  for(int i = 0; i < num_msgs; i++) {
+    
+    memcpy(&buffer_id, &message[buffer_index], sizeof(int));  // read buffer id
+    buffer_index += sizeof(int);
 
-  LOG(READ, "busca no lmdb terminada");
+    memcpy(&accepted_to_read, &message[buffer_index], sizeof(paxos_accepted));  // read message
+    buffer_index += sizeof(paxos_accepted);
 
-  memcpy(out_message, message, sizeof(int));
-  memcpy(&out_message[sizeof(int)], out, max_message_size - sizeof(int));
+    LOG(READ, "===> searching for %u", accepted_to_read.iid);
+    int response = storage_get(lmdbStorage, accepted_to_read.iid, out);
 
-  ++readCount;
-  if(response != 0) {
-    accepted_response = (paxos_accepted*) out;
-    log_found(accepted_response, out);
-    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted) + accepted_response->value.paxos_value_len);
-  } else {
-    ++readMissCount;
-    LOG(READ, "not found %u, sending not found to LKM\n", accepted_to_read->iid);
-    memset(&out_message[sizeof(int)], 0, sizeof(paxos_accepted));
-    write(fd, out_message, sizeof(int) + sizeof(paxos_accepted));
+    LOG(READ, "busca no lmdb terminada");
+
+    memcpy(&out_message[response_index], &buffer_id, sizeof(int)); // save buffer id
+    response_index += sizeof(int);
+
+    ++readCount;
+    if(response != 0) {
+      memcpy(&out_message[response_index], out, sizeof(paxos_accepted)); // save message headers
+      response_index += sizeof(paxos_accepted);
+
+      memcpy(&accepted_response, out, sizeof(paxos_accepted));
+
+      if(accepted_response.value.paxos_value_len > 0) { // save message payload
+        memcpy(&out_message[response_index], &out[sizeof(paxos_accepted)], accepted_response.value.paxos_value_len);
+        response_index += accepted_response.value.paxos_value_len;
+      }
+
+      log_found(&accepted_response, out);
+    } else {
+      ++readMissCount;
+      LOG(READ, "not found %u, sending not found to LKM\n", accepted_to_read.iid);
+      memset(&out_message[response_index], 0, sizeof(paxos_accepted));
+      response_index += sizeof(paxos_accepted);
+    }
   }
+  write(fd, out_message, num_msgs);
 }

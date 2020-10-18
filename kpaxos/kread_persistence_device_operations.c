@@ -6,6 +6,10 @@
 #include "paxos_types.h"
 #include "paxos.h"
 
+ #define MIN(a,b) \
+   ({ __typeof__ (a) _a = (a); \
+       __typeof__ (b) _b = (b); \
+     _a < _b ? _a : _b; })
 
 paxos_kernel_device readPersistenceDevice_;
 
@@ -22,29 +26,36 @@ int read_persistence_open(struct inode *inodep, struct file *filep) {
 // returns 0 if it has to stop, >0 when it reads something, and <0 on error
 ssize_t read_persistence_read(struct file *filep, char *buffer, size_t len,
                                loff_t *offset) {
-  int error_count_accepted, error_count_buffer_id;
+  int error_count_accepted = 0, error_count_buffer_id = 0;
   size_t llen;
 
   if (!readPersistenceDevice_.working)
     return 0;
 
-  llen = sizeof(paxos_accepted) + readPersistenceDevice_.msg_buf[readPersistenceDevice_.first_buf]->value.paxos_value_len;
-  error_count_buffer_id = copy_to_user(buffer, &readPersistenceDevice_.first_buf, sizeof(int));
-  error_count_accepted = copy_to_user(&buffer[sizeof(int)], (char *)(readPersistenceDevice_.msg_buf[readPersistenceDevice_.first_buf]), llen);
-  llen += sizeof(int);
+  int buffer_size = atomic_read(&(readPersistenceDevice_.used_buf));
+  int num_msgs = MIN(buffer_size, len); // Get the min of buffer size and batch size requested
+  size_t buffer_index = 0;
 
 
-  paxos_log_debug("Read Persistence Device char: read %zu bytes!", llen);
+  for(int i = 0; i < num_msgs; i++){
+    llen = sizeof(paxos_accepted) + readPersistenceDevice_.msg_buf[readPersistenceDevice_.first_buf]->value.paxos_value_len;
 
-  paxos_log_info("READ REQUEST BUFFER ID: %d", readPersistenceDevice_.first_buf);
-  if (error_count_accepted != 0 || error_count_buffer_id != 0) {
-    paxerr("send fewer characters to the user");
-    return -1;
-  } else {
-    readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
-//    atomic_dec(&(readPersistenceDevice_.used_buf));
+    error_count_buffer_id += copy_to_user(&buffer[buffer_index], &readPersistenceDevice_.first_buf, sizeof(int));
+    buffer_index += sizeof(int);
+
+    error_count_accepted += copy_to_user(&buffer[buffer_index], (char *)(readPersistenceDevice_.msg_buf[readPersistenceDevice_.first_buf]), llen);
+    buffer_index += llen;
+
+    paxos_log_info("READ REQUEST BUFFER ID: %d", readPersistenceDevice_.first_buf);
+    if (error_count_accepted != 0 || error_count_buffer_id != 0) {
+      paxerr("send fewer characters to the user");
+      return -1;
+    } else {
+      readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
+    }
   }
-  return llen;
+
+  return num_msgs;
 }
 
 ssize_t read_persistence_write(struct file *filep, const char *buffer, size_t len,
@@ -54,43 +65,48 @@ ssize_t read_persistence_write(struct file *filep, const char *buffer, size_t le
 
   int error_count_accepted, error_count_buffer_id, error_count_value = 0;
   int buffer_id;
+  size_t buffer_index = 0;
 
-  error_count_buffer_id = copy_from_user(&buffer_id, buffer, sizeof(int));
+  for(int i=0;i<len;i++) {
+    error_count_buffer_id = copy_from_user(&buffer_id, &buffer[buffer_index], sizeof(int));
+    buffer_index += sizeof(int);
 
-  if(error_count_buffer_id != 0) {
-    goto error;
-  }
+    if(error_count_buffer_id != 0) {
+      goto error;
+    }
 
-  paxos_log_info("READ RESPONSE TO BUFFER ID: %d", buffer_id);
+    paxos_log_info("READ RESPONSE TO BUFFER ID: %d", buffer_id);
 
-  kernel_device_callback* callback = readPersistenceDevice_.callback_buf[buffer_id];
-  paxos_accepted* accepted = callback -> response;
-  clearPaxosAccepted(callback -> response);
+    kernel_device_callback* callback = readPersistenceDevice_.callback_buf[buffer_id];
+    paxos_accepted* accepted = callback -> response;
+    clearPaxosAccepted(callback -> response);
 
-  char* paxos_val = accepted -> value.paxos_value_val;
-  error_count_accepted  = copy_from_user(accepted, &buffer[sizeof(int)], sizeof(paxos_accepted));
-  accepted -> value.paxos_value_val = paxos_val;
+    char* paxos_val = accepted -> value.paxos_value_val;
+    error_count_accepted  = copy_from_user(accepted, &buffer[buffer_index], sizeof(paxos_accepted));
+    buffer_index += sizeof(paxos_accepted);
+    accepted -> value.paxos_value_val = paxos_val;
 
-  if(error_count_accepted != 0) {
-    goto error;
-  }
+    if(error_count_accepted != 0) {
+      goto error;
+    }
 
-  if(accepted -> value.paxos_value_len > 0) {
-    error_count_value = copy_from_user(accepted -> value.paxos_value_val, &buffer[sizeof(int) + sizeof(paxos_accepted)], accepted -> value.paxos_value_len);
-  }
+    if(accepted -> value.paxos_value_len > 0) {
+      error_count_value = copy_from_user(accepted -> value.paxos_value_val, &buffer[buffer_index], accepted -> value.paxos_value_len);
+      buffer_index += accepted -> value.paxos_value_len;
+    }
 
-//  readPersistenceDevice_.first_buf = (readPersistenceDevice_.first_buf + 1) % BUFFER_SIZE;
-  atomic_dec(&(readPersistenceDevice_.used_buf));
+    atomic_dec(&(readPersistenceDevice_.used_buf));
 
-  print_paxos_accepted(accepted, "READ RESPONSE");
+    print_paxos_accepted(accepted, "READ RESPONSE");
 
-  if ( error_count_value != 0 ) {
-    goto error;
-  }
+    if ( error_count_value != 0 ) {
+      goto error;
+    }
 
-  if(callback != NULL && !callback -> is_done) {
-      callback->response = accepted;
-      wake_up(&(callback -> response_wait));
+    if(callback != NULL && !callback -> is_done) {
+        callback->response = accepted;
+        wake_up(&(callback -> response_wait));
+    }
   }
   return len;
 
@@ -121,8 +137,7 @@ int read_persistence_release(struct inode *inodep, struct file *filep) {
 
 kernel_device_callback* read_persistence_add_message(const char* msg, size_t size) {
   if (atomic_read(&(readPersistenceDevice_.used_buf)) >= BUFFER_SIZE) {
-    //if (printk_ratelimit())
-      paxos_log_debug("Read Persistence Buffer is full! Lost a value");
+    paxos_log_debug("Read Persistence Buffer is full! Lost a value");
     return NULL;
   }
   atomic_inc(&(readPersistenceDevice_.used_buf));
