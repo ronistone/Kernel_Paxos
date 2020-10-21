@@ -4,7 +4,7 @@
 
 #include "lmdb_operations.h"
 
-#define DEFAULT_SIZE 100*1024*1024
+#define DEFAULT_SIZE 5000*1024*1024
 
 static const char* db_env_path = "/tmp/paxos";
 static size_t lmdb_mapsize = DEFAULT_SIZE;
