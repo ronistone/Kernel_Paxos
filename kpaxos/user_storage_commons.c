@@ -26,7 +26,7 @@ int storage_get(struct lmdb_storage lmdbStorage, uint32_t id, char* out){
     return 0;
   }
   if(lmdb_storage_get( &lmdbStorage, id, out)!=1){
-   printf("Fail to get in storage!\n");
+//   printf("Fail to get in storage!\n");
     lmdb_storage_tx_abort( &lmdbStorage);
     goto error_storage_get;
   }

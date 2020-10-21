@@ -206,12 +206,12 @@ lmdb_storage_get(struct lmdb_storage *s, iid_t iid, char* out)
 //  printf("Searching for accepted with iid=%u\n", iid);
 
   if ((result = mdb_get(s->txn, s->dbi, &key, &data)) != 0) {
-    if (result == MDB_NOTFOUND) {
-      printf("There is no record for iid: %u\n", iid);
-    } else {
-      printf("Could not find record for iid: %u : %s\n",
-             iid, mdb_strerror(result));
-    }
+//    if (result == MDB_NOTFOUND) {
+////      printf("There is no record for iid: %u\n", iid);
+//    } else {
+////      printf("Could not find record for iid: %u : %s\n",
+////             iid, mdb_strerror(result));
+//    }
     return 0;
   }
 
