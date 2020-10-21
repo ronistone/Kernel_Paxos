@@ -36,6 +36,9 @@ struct paxos_config paxos_config = { .verbosity = PAXOS_LOG_ERROR,
                                      .proposer_preexec_window = 128,
                                      .storage_backend = PAXOS_MEM_STORAGE,
                                      .trash_files = 0,
+                                     .num_threads_in_pool = 10,
+                                     .storage_wait_timeout = 200,
+                                     .char_device_buffer_size = 10000,
                                      .lmdb_sync = 0,
                                      .lmdb_env_path = "/tmp/acceptor",
                                      .lmdb_mapsize = 10 * 1024 * 1024 };
@@ -173,4 +176,32 @@ paxos_log_debug(const char* format, ...)
   va_start(ap, format);
   paxos_log(PAXOS_LOG_DEBUG, format, ap);
   va_end(ap);
+}
+
+void
+clearPaxosAccepted(paxos_accepted* accepted) {
+  accepted -> iid = 0;
+  accepted -> promise_iid = 0;
+  accepted -> ballot = 0;
+  accepted -> value.paxos_value_len = 0;
+  memset(accepted -> value.paxos_value_val, 0, MAX_PAXOS_VALUE_SIZE);
+}
+
+void print_paxos_accepted(paxos_accepted* accepted, char* prefix) {
+  paxos_log_info("%s: Paxos Accepted { "
+                 "aid: %u, "
+                 "iid: %d, "
+                 "promise_iid: %u, "
+                 "ballot: %u, "
+                 "value_ballot: %u, "
+                 "value: { "
+                 " paxos_value_len: %d"
+                 "}", prefix, accepted -> aid, accepted->iid, accepted->promise_iid,
+                 accepted->ballot, accepted->value_ballot, accepted->value.paxos_value_len);
+}
+
+void set_value_pointer_ahead_of_accepted(paxos_accepted* accepted) {
+  if( accepted != NULL ) {
+    accepted -> value.paxos_value_val = (char*)(accepted + sizeof(paxos_accepted));
+  }
 }

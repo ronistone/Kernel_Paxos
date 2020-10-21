@@ -51,12 +51,10 @@ evpaxos_replica_deliver(unsigned iid, char* value, size_t size, void* arg)
 
 struct evpaxos_replica*
 evpaxos_replica_init(int id, deliver_function f, void* arg, char* if_name,
-                     char* path)
+                     struct evpaxos_config* config)
 {
   struct evpaxos_replica* replica;
-  struct evpaxos_config*  config;
 
-  config = evpaxos_config_read(path);
   if (config == NULL) {
     return NULL;
   }

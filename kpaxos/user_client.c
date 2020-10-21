@@ -122,11 +122,15 @@ make_client(struct client* cl)
   }
   stats_init();
 
+//  int _i = 0;
   while (stop) {
     poll(&pol, 1, -1);
     if (pol.revents == POLLIN) {
       callback(cl);
+//      _i++;
     }
+//    if(_i>=10)
+//      break;
   }
 
   stats_print();

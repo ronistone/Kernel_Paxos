@@ -38,9 +38,7 @@ extern "C"
 #include <linux/kernel.h>
 #include <linux/types.h>
 
-  /* Paxos instance ids and ballots */
-  typedef uint32_t iid_t;
-  typedef uint32_t ballot_t;
+
 
   /* Logging and verbosity levels */
   typedef enum
@@ -64,6 +62,7 @@ extern "C"
     /* General configuration */
     paxos_log_level verbosity;
     int             tcp_nodelay;
+    int             char_device_buffer_size;
 
     /* Learner */
     int learner_catch_up;
@@ -75,12 +74,24 @@ extern "C"
     /* Acceptor */
     paxos_storage_backend storage_backend;
     int                   trash_files;
+    int                   num_threads_in_pool;
+    int                   storage_wait_timeout;
 
     /* lmdb storage configuration */
     int    lmdb_sync;
     char*  lmdb_env_path;
     size_t lmdb_mapsize;
   };
+
+  typedef struct kernel_device_callback {
+
+    wait_queue_head_t response_wait;
+    struct paxos_accepted* response;
+    int buffer_id;
+    uint32_t is_done;
+    uint32_t iid;
+
+  } kernel_device_callback;
 
   extern struct paxos_config paxos_config;
 
@@ -97,6 +108,9 @@ extern "C"
   void         paxos_log_error(const char* format, ...);
   void         paxos_log_info(const char* format, ...);
   void         paxos_log_debug(const char* format, ...);
+  void         print_paxos_accepted(paxos_accepted* accepted, char* prefix);
+  void         clearPaxosAccepted(paxos_accepted* accepted);
+  void         set_value_pointer_ahead_of_accepted(paxos_accepted* accepted);
 
 /*
     MAX_N_OF_PROPOSERS should be removed.

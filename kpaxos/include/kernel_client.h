@@ -4,7 +4,10 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <sys/time.h>
+//#include "paxos.h"
+typedef unsigned int uint32_t;
 #endif
+#include "paxos_types.h"
 struct client_value
 {
   int            client_id;
@@ -12,6 +15,12 @@ struct client_value
   size_t         size;
   char           value[0];
 };
+
+typedef struct storage_value {
+  int bufferId;
+  paxos_accepted* value;
+} storage_value;
+
 
 struct user_msg
 {

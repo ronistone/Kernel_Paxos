@@ -1,4 +1,6 @@
 #include "evpaxos.h"
+#include "evworkers.h"
+#include "klearner_device_operations.h"
 #include "kernel_device.h"
 #include <asm/atomic.h>
 #include <linux/init.h>
@@ -23,6 +25,8 @@ module_param(path, charp, S_IRUGO);
 MODULE_PARM_DESC(path, "The config file position, default ./paxos.conf");
 
 static struct evpaxos_replica* replica = NULL;
+static paxos_kernel_device* kleaner_device = NULL;
+static struct evpaxos_config* config;
 
 void
 deliver(unsigned iid, char* value, size_t size, void* arg)
@@ -31,14 +35,30 @@ deliver(unsigned iid, char* value, size_t size, void* arg)
 }
 
 static void
-start_replica(int id)
-{
-  kdevchar_init(id, "klearner");
-  replica = evpaxos_replica_init(id, deliver, NULL, if_name, path);
+process_start(struct kthread_work* work) {
+
+  LOG_INFO("[%s] execute process_start\n", current -> comm);
+  kleaner_device = create_kleaner_device();
+  kdevchar_init(id, "klearner", kleaner_device);
+  replica = evpaxos_replica_init(id, deliver, NULL, if_name, config);
 
   if (replica == NULL) {
     LOG_ERROR("Could not start the replica!");
   }
+
+  vfree(work);
+}
+
+static void
+start_replica(void)
+{
+  config = evpaxos_config_read(path);
+  evworkers_pool_init();
+
+  struct kthread_work *work = vmalloc(sizeof(struct kthread_work));
+  init_kthread_work(work, process_start);
+
+  evworker_add_work(work);
 }
 
 static int __init
@@ -48,7 +68,7 @@ static int __init
     LOG_ERROR("you must give a valid id!");
     return 0;
   }
-  start_replica(id);
+  start_replica();
   LOG_INFO("Module loaded");
   return 0;
 }
@@ -56,9 +76,11 @@ static int __init
 static void __exit
             replica_exit(void)
 {
-  kdevchar_exit();
-  if (replica != NULL)
+  evworkers_destroy_pool();
+  kdevchar_exit(kleaner_device);
+  if (replica != NULL) {
     evpaxos_replica_free(replica);
+  }
   LOG_INFO("Module unloaded");
 }
 

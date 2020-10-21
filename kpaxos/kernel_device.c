@@ -1,240 +1,165 @@
 #include "kernel_device.h"
-#include "eth.h"
+#include "common.h"
 #include "kernel_client.h"
 #include "paxos.h"
+#include <linux/device.h>
+#include <linux/fs.h>
+#include <linux/kernel.h>
 #include <linux/poll.h>
 #include <linux/semaphore.h>
+#include <linux/uaccess.h>
 #include <linux/vmalloc.h>
 #include <linux/wait.h>
+#include "paxos_types.h"
+#include "paxos.h"
 
-#define BUFFER_SIZE 100000
-static struct mutex char_mutex;
-// static struct mutex buffer_mutex;
+static int majorNumber = 0;
 
-// The device-driver class struct pointer
-static struct class* charClass = NULL;
-// The device-driver device struct pointer
-static struct device*    charDevice = NULL;
-static wait_queue_head_t access_wait;
-static char *            de_name, *clas_name;
-static int               majorNumber, working, current_buf = 0, first_buf = 0;
-static struct user_msg** msg_buf;
-static atomic_t          used_buf;
 
-struct file_operations fops = {
-  .owner = THIS_MODULE,
-  .open = kdev_open,
-  .read = kdev_read,
-  .write = kdev_write,
-  .release = kdev_release,
-  .poll = kdev_poll,
-};
-
-static void
-paxerr(char* err)
-{
-  paxos_log_error("Device Char: failed to %s", err);
-  // working = 0;
+void paxerr(char *err) {
+    paxos_log_error("Device Char: failed to %s", err);
+    // working = 0;
 }
 
-int
-kdev_open(struct inode* inodep, struct file* filep)
-{
-  if (!mutex_trylock(&char_mutex)) {
-    paxos_log_error("Device char: Device used by another process");
-    return -EBUSY;
-  }
-  return 0;
+static void allocate_name(char **dest, char *name, int id) {
+    size_t len = strlen(name) + 1;
+    *dest = pmalloc(len + 1);
+    memcpy(*dest, name, len);
+    (*dest)[len - 1] = id + '0';
+    (*dest)[len] = '\0';
 }
 
-void
-kset_message(char* msg, size_t size)
-{
-  if (atomic_read(&used_buf) >= BUFFER_SIZE) {
-    if (printk_ratelimit())
-      paxos_log_error("Buffer is full! Lost a value");
-  }
-
-  msg_buf[current_buf]->size = size;
-  memcpy(msg_buf[current_buf]->value, msg, size);
-  current_buf = (current_buf + 1) % BUFFER_SIZE;
-  atomic_inc(&used_buf);
-  wake_up_interruptible(&access_wait);
+static void allocate_name_folder(char **dest, char *name, int id) {
+    char *folder = "paxos";
+    size_t f_len = strlen(folder);
+    size_t len = strlen(name);
+    *dest = pmalloc(f_len + len + 3);
+    memcpy(*dest, folder, f_len);
+    (*dest)[f_len] = '/';
+    (*dest)[f_len + 1] = '\0';
+    strcat(*dest, name);
+    (*dest)[f_len + len + 1] = id + '0';
+    (*dest)[f_len + len + 2] = '\0';
 }
 
-// returns 0 if it has to stop, >0 when it reads something, and <0 on error
-ssize_t
-kdev_read(struct file* filep, char* buffer, size_t len, loff_t* offset)
-{
-  int error_count;
-
-  if (!working) {
+static int major_number(int id, char *name, paxos_kernel_device* kernelDevice) {
+    allocate_name_folder(&(kernelDevice -> de_name), name, id);
+    majorNumber = register_chrdev(0, kernelDevice->de_name,
+                                  &(kernelDevice->fops));
+    kernelDevice->majorNumber = majorNumber;
+    if (majorNumber < 0) {
+        paxerr("register major number");
+        return kernelDevice -> majorNumber;
+    }
+    paxos_log_info("Device Char: Device Char %s registered correctly with major"
+           " number %d",
+           kernelDevice -> de_name, kernelDevice -> majorNumber);
     return 0;
-  }
-
-  atomic_dec(&used_buf);
-  size_t llen = sizeof(struct user_msg) + msg_buf[first_buf]->size;
-  error_count = copy_to_user(buffer, (char*)msg_buf[first_buf], llen);
-
-  if (error_count != 0) {
-    paxerr("send fewer characters to the user");
-    return -1;
-  } else
-    first_buf = (first_buf + 1) % BUFFER_SIZE;
-
-  return llen;
 }
 
-ssize_t
-kdev_write(struct file* filep, const char* buffer, size_t len, loff_t* offset)
-{
-  if (working == 0)
-    return -1;
-
-  return len;
-}
-
-unsigned int
-kdev_poll(struct file* file, poll_table* wait)
-{
-  poll_wait(file, &access_wait, wait);
-  if (atomic_read(&used_buf) > 0)
-    return POLLIN;
-
-  return 0;
-}
-
-int
-kdev_release(struct inode* inodep, struct file* filep)
-{
-  mutex_unlock(&char_mutex);
-  // LOG_INFO("Messages left %d", atomic_read(&used_buf));
-  atomic_set(&used_buf, 0);
-  current_buf = 0;
-  first_buf = 0;
-  LOG_INFO("Device Char: Device successfully closed");
-  return 0;
-}
-
-static void
-allocate_name(char** dest, char* name, int id)
-{
-  size_t len = strlen(name) + 1;
-  *dest = pmalloc(len + 1);
-  memcpy(*dest, name, len);
-  (*dest)[len - 1] = id + '0';
-  (*dest)[len] = '\0';
-}
-
-static void
-allocate_name_folder(char** dest, char* name, int id)
-{
-  char*  folder = "paxos";
-  size_t f_len = strlen(folder);
-  size_t len = strlen(name);
-  *dest = pmalloc(f_len + len + 3);
-  memcpy(*dest, folder, f_len);
-  (*dest)[f_len] = '/';
-  (*dest)[f_len + 1] = '\0';
-  strcat(*dest, name);
-  (*dest)[f_len + len + 1] = id + '0';
-  (*dest)[f_len + len + 2] = '\0';
-}
-
-static int
-major_number(int id, char* name)
-{
-  allocate_name_folder(&de_name, name, id);
-  majorNumber = register_chrdev(0, de_name, &fops);
-  if (majorNumber < 0) {
-    paxerr("register major number");
-    return majorNumber;
-  }
-  paxos_log_debug("Device Char: Device Char %s registered correctly with major"
-                  " number %d",
-                  de_name, majorNumber);
-  return 0;
-}
-
-static int
-reg_dev_class(int id, char* name)
-{
-  allocate_name(&clas_name, name, id);
-  charClass = class_create(THIS_MODULE, clas_name);
-  if (IS_ERR(charClass)) {
-    unregister_chrdev(majorNumber, de_name);
-    paxerr("register device class");
-    return -1;
-  }
-  paxos_log_debug("Device Char: device class %s registered correctly",
-                  clas_name);
-  return 0;
-}
-
-static int
-reg_char_class(void)
-{
-  charDevice =
-    device_create(charClass, NULL, MKDEV(majorNumber, 0), NULL, de_name);
-  if (IS_ERR(charDevice)) {
-    class_destroy(charClass);
-    unregister_chrdev(majorNumber, de_name);
-    paxerr("create the device");
-    return -1;
-  }
-  return 0;
-}
-
-int
-kdevchar_init(int id, char* name)
-{
-  if (name == NULL)
+static int reg_dev_class(int id, char *name, paxos_kernel_device* kernelDevice) {
+    allocate_name(&(kernelDevice -> clas_name), name, id);
+    kernelDevice -> charClass = class_create(THIS_MODULE, kernelDevice -> clas_name);
+    if (IS_ERR(kernelDevice -> charClass)) {
+        unregister_chrdev(kernelDevice -> majorNumber, kernelDevice -> de_name);
+        paxerr("register device class");
+        return -1;
+    }
+    paxos_log_info("Device Char: device class %s registered correctly",
+           kernelDevice -> clas_name);
     return 0;
-  paxos_log_debug("Client: Initializing the Device Char");
-  working = 1;
-
-  // Register major number
-  if (major_number(id, name) < 0)
-    return -1;
-
-  // Register the device class
-  if (reg_dev_class(id, name) < 0)
-    return -1;
-
-  // Register the device driver
-  if (reg_char_class() < 0)
-    return -1;
-
-  msg_buf = vmalloc(sizeof(struct user_msg*) * BUFFER_SIZE);
-  for (size_t i = 0; i < BUFFER_SIZE; i++) {
-    msg_buf[i] = vmalloc(sizeof(struct user_msg) + ETH_DATA_LEN);
-  }
-
-  mutex_init(&char_mutex);
-  init_waitqueue_head(&access_wait);
-  atomic_set(&used_buf, 0);
-  paxos_log_debug("Device Char: device class created correctly");
-  return 0;
 }
 
-void
-kdevchar_exit(void)
-{
-  working = 0;
-  atomic_inc(&used_buf);
-  wake_up_interruptible(&access_wait);
-  mutex_destroy(&char_mutex);
-  device_destroy(charClass, MKDEV(majorNumber, 0)); // remove the device
-  class_unregister(charClass); // unregister the device class
-  class_destroy(charClass);    // remove the device class
+static int reg_char_class(paxos_kernel_device* kernelDevice) {
+    kernelDevice -> charDevice =
+            device_create(
+                    kernelDevice -> charClass,
+                    NULL,
+                    MKDEV( kernelDevice -> majorNumber, 0),
+                    NULL,
+                    kernelDevice -> de_name
+            );
 
-  for (int i = 0; i < BUFFER_SIZE; i++) {
-    vfree(msg_buf[i]);
-  }
-  vfree(msg_buf);
+    if (IS_ERR(kernelDevice -> charDevice)) {
+        class_destroy(kernelDevice -> charClass);
+        unregister_chrdev(kernelDevice -> majorNumber, kernelDevice -> de_name);
+        paxerr("create the device");
+        return -1;
+    }
+    return 0;
+}
 
-  pfree(de_name);
-  pfree(clas_name);
-  unregister_chrdev(majorNumber, de_name); // unregister the major number
-  paxos_log_debug(KERN_INFO "Device Char: Unloaded\n");
+int kdevchar_init(int id, char* name, paxos_kernel_device* kernel_device) {
+    if (name == NULL || kernel_device == NULL)
+        return 0;
+    paxos_log_info("Initializing the Device Char");
+    kernel_device -> working = 1;
+
+    // Register major number
+    if (major_number(id, name, kernel_device) < 0)
+        return -1;
+
+    // Register the device class
+    if (reg_dev_class(id, name, kernel_device) < 0)
+        return -1;
+
+    // Register the device driver
+    if (reg_char_class(kernel_device) < 0)
+        return -1;
+
+    kernel_device_callback* callback;
+
+    kernel_device -> msg_buf = vmalloc(sizeof(struct paxos_accepted*) * BUFFER_SIZE);
+    kernel_device -> callback_buf = vmalloc(sizeof(struct kernel_device_callback*) * BUFFER_SIZE);
+    for(size_t i = 0; i < BUFFER_SIZE;i++){
+        kernel_device -> msg_buf[i] = pmalloc(sizeof(struct paxos_accepted) + MAX_PAXOS_VALUE_SIZE);
+        kernel_device -> callback_buf[i] = vmalloc(sizeof(struct kernel_device_callback));
+
+        callback = kernel_device -> callback_buf[i];
+        init_waitqueue_head(&(callback->response_wait));
+
+        callback->response = vmalloc(sizeof(struct paxos_accepted));
+        callback->response->value.paxos_value_val = vmalloc(MAX_PAXOS_VALUE_SIZE);
+        clearPaxosAccepted(callback -> response);
+
+        callback->is_done = 0;
+
+    }
+    kernel_device -> current_buf = 0;
+    kernel_device -> first_buf = 0;
+    mutex_init(& (kernel_device -> char_mutex));
+    init_waitqueue_head(&(kernel_device -> access_wait));
+    atomic_set(&(kernel_device -> used_buf), 0);
+    paxos_log_info("Device class created correctly");
+    return 0;
+}
+
+void kdevchar_exit(paxos_kernel_device* kernel_device) {
+    kernel_device -> working = 0;
+    atomic_inc(&(kernel_device -> used_buf));
+    wake_up_interruptible(&(kernel_device -> access_wait));
+    mutex_destroy(&(kernel_device -> char_mutex));
+    device_destroy(kernel_device -> charClass, MKDEV(kernel_device -> majorNumber, 0)); // remove the device
+    class_unregister(kernel_device -> charClass); // unregister the device class
+    class_destroy(kernel_device -> charClass);    // remove the device class
+
+    if (kernel_device -> msg_buf && kernel_device -> callback_buf) {
+        for(int i=0;i<BUFFER_SIZE;i++){
+            kfree(kernel_device->msg_buf[i]);
+            vfree(kernel_device -> callback_buf[i] -> response -> value.paxos_value_val);
+            vfree(kernel_device -> callback_buf[i] -> response );
+            vfree(kernel_device->callback_buf[i]);
+        }
+        vfree(kernel_device->msg_buf);
+        vfree(kernel_device->callback_buf);
+    }
+
+    pfree(kernel_device -> de_name);
+    pfree(kernel_device -> clas_name);
+    unregister_chrdev(kernel_device -> majorNumber, kernel_device -> de_name); // unregister the major number
+    paxos_log_info("Unloaded\n");
+}
+
+void persistence_device_destroy(paxos_kernel_device* kernel_device) {
+    free_pool(kernel_device -> pool);
 }

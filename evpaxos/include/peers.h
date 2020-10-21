@@ -33,6 +33,7 @@ extern "C"
 {
 #endif
 
+#include "common.h"
 #include "evpaxos.h"
 #include "paxos.h"
 #include "paxos_types.h"

@@ -30,7 +30,11 @@
 void
 storage_init(struct storage* store, int acceptor_id)
 {
-  storage_init_mem(store, acceptor_id);
+  if(paxos_config.storage_backend == PAXOS_MEM_STORAGE) {
+    storage_init_mem(store, acceptor_id);
+  } else {
+    storage_init_lmdb(store, acceptor_id);
+  }
 }
 
 int

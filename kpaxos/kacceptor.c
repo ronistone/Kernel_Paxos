@@ -5,8 +5,10 @@
 #include <linux/time.h>
 #include <linux/udp.h>
 #include <net/sock.h>
+#include <linux/vmalloc.h>
 
 #include "evpaxos.h"
+#include "evworkers.h"
 
 const char* MOD_NAME = "KAcceptor";
 
@@ -23,20 +25,36 @@ module_param(path, charp, S_IRUGO);
 MODULE_PARM_DESC(path, "The config file position, default ./paxos.conf");
 
 static struct evacceptor* acc = NULL;
+static struct evpaxos_config* config = NULL;
 
-static void
-start_acceptor(int id)
-{
-  acc = evacceptor_init(id, if_name, path);
+static void proccess_start(struct kthread_work* work){
+
+  LOG_INFO("[%s] execute process_start\n", current -> comm);
+  acc = evacceptor_init(id, if_name, config);
   if (acc == NULL) {
     LOG_ERROR("Could not start the acceptor\n");
   }
+
+  vfree(work);
+}
+
+static void
+start_acceptor(void)
+{
+  config = evpaxos_config_read(path);
+
+  evworkers_pool_init();
+
+  struct kthread_work *work = vmalloc(sizeof(struct kthread_work));
+  init_kthread_work(work, proccess_start);
+
+  evworker_add_work(work);
 }
 
 static int __init
            init_acceptor(void)
 {
-  start_acceptor(id);
+  start_acceptor();
   LOG_INFO("Module loaded");
   return 0;
 }
@@ -44,8 +62,11 @@ static int __init
 static void __exit
             acceptor_exit(void)
 {
-  if (acc != NULL)
+  evworkers_destroy_pool();
+  if (acc != NULL) {
     evacceptor_free(acc);
+  }
+
   LOG_INFO("Module unloaded");
 }
 
