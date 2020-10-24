@@ -67,11 +67,9 @@ static void* generic_storage_thread(void* param) {
   int fd;
   struct pollfd polling;
   char *recv;
-  paxos_accepted* accepted;
-  int len = 0;
+  ssize_t len = 0;
 
-  recv = malloc(max_message_size);
-  accepted = malloc(max_message_size);
+  recv = malloc( batch_size * (sizeof(int) + max_message_size));
 
   LOG(isRead, "Open Device -> %s", device_path);
   fd = open(device_path, O_RDWR | O_NONBLOCK, 0);
@@ -86,18 +84,14 @@ static void* generic_storage_thread(void* param) {
 //      LOG(isRead, "exit poll");
       if (polling.revents & POLLIN) {
 
-        if(isRead) {
-          len = read(fd, recv, batch_size);
-        } else {
-          len = read(fd, recv, WHATEVER_VALUE);
-        }
-
+        len = read(fd, recv, batch_size);
+        // printf("len -> %d\n", len);
         if (len) {
           countMessages++;
           if(isRead){
             process_read_message(lmdbStorage, recv, len, fd);
           } else {
-            process_write_message(lmdbStorage, recv, len - sizeof(int));
+            process_write_message(lmdbStorage, recv, len);
           }
         }
       } else {
@@ -113,7 +107,6 @@ static void* generic_storage_thread(void* param) {
     LOG(isRead, "Error while opening the write storage chardev.");
   }
   free(recv);
-  free(accepted);
 
   pthread_exit(0);
 }

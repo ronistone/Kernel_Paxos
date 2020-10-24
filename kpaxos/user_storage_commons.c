@@ -61,16 +61,28 @@ int storage_put(struct lmdb_storage lmdbStorage, uint32_t id, char* message, siz
 }
 
 void process_write_message(struct lmdb_storage lmdbStorage, char* message, int len){
-  paxos_accepted* accepted_to_write = (paxos_accepted*)&message[sizeof(int)];
+  int message_size;
+  int buffer_index = 0;
+  for(int i = 0; i < len; i++){
+    message_size = 0;
+    buffer_index += sizeof(int);
+    paxos_accepted* accepted_to_write = (paxos_accepted*)&message[buffer_index];
 
-//  memcpy(&iid, &message[sizeof(int) + sizeof(uint32_t)], sizeof(uint32_t));
-  if(verbose) {
-    int value_size;
-    memcpy(&value_size, &message[sizeof(int) + (6* sizeof(uint32_t))], sizeof(int));
-    LOG(WRITE, "Putting %u in the storage with size = %d", accepted_to_write->iid, accepted_to_write->value.paxos_value_len);
+    if(verbose) {
+      int value_size;
+      memcpy(&value_size, &message[buffer_index + (6* sizeof(uint32_t))], sizeof(int));
+      LOG(WRITE, "Putting %u in the storage with size = %d", accepted_to_write->iid, accepted_to_write->value.paxos_value_len);
+    }
+    ++writeCount;
+    
+    message_size += sizeof(paxos_accepted);
+    if(accepted_to_write -> value.paxos_value_len > 0) {
+      message_size += accepted_to_write -> value.paxos_value_len;
+    }
+
+    storage_put(lmdbStorage, accepted_to_write->iid, &message[buffer_index], message_size);
+    buffer_index += message_size;
   }
-  ++writeCount;
-  storage_put(lmdbStorage, accepted_to_write->iid, &message[sizeof(int)], len);
 }
 
 void process_read_message(struct lmdb_storage lmdbStorage, char* message, size_t num_msgs, int fd){

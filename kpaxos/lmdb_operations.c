@@ -4,7 +4,7 @@
 
 #include "lmdb_operations.h"
 
-#define DEFAULT_SIZE 5000*1024*1024
+#define DEFAULT_SIZE 500*1024*1024
 
 static const char* db_env_path = "/tmp/paxos";
 static size_t lmdb_mapsize = DEFAULT_SIZE;
@@ -151,7 +151,9 @@ int
 lmdb_storage_tx_commit(struct lmdb_storage *s)
 {
   int result;
-  assert(s->txn);
+  if(s->txn == NULL){
+    return -1;
+  }
   result = mdb_txn_commit(s->txn);
   s->txn = NULL;
   return result;

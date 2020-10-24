@@ -13,7 +13,7 @@
 
 
 
-static const char* PATH = "/tmp/paxos";
+static const char* PATH = "/tmp/paxos_test";
 static const char* MSG = "1234567890123456789012345678901234567890123456789012345678901234";
 static const size_t MSG_SIZE = 64;
 static struct lmdb_storage lmdbStorage;
@@ -47,6 +47,7 @@ int main() {
     int count = 0;
     int fd = open(PATH, O_RDWR | O_NONBLOCK, 0);
     paxos_accepted accepted;
+    paxos_accepted accepted1;
     char buffer[sizeof(int) + sizeof(paxos_accepted) + MSG_SIZE];
     struct timeval initial_time;
     // verbose = 1;
@@ -55,6 +56,7 @@ int main() {
 
     if(fd > 0) {
         while (!stop) {
+          printf("message\n");
             memset(&accepted, 0, sizeof(paxos_accepted));
             memset(&buffer, 0, sizeof(paxos_accepted) + MSG_SIZE);
             accepted.iid = count++;
@@ -62,8 +64,15 @@ int main() {
             accepted.value.paxos_value_val = MSG;
             memcpy(buffer, &count, sizeof(int));
             paxos_accepted_to_char_array(&accepted, &buffer[sizeof(int)]);
-            process_write_message(lmdbStorage, buffer, sizeof(paxos_accepted) + MSG_SIZE);
-            process_read_message(lmdbStorage, buffer, sizeof(paxos_accepted) + MSG_SIZE, fd);
+            memset(&accepted1, 0, sizeof(paxos_accepted));
+            memset(&buffer, 0, sizeof(paxos_accepted) + MSG_SIZE);
+            accepted1.iid = count++;
+            accepted1.value.paxos_value_len = MSG_SIZE;
+            accepted1.value.paxos_value_val = MSG;
+            memcpy(buffer, &count, sizeof(int));
+            paxos_accepted_to_char_array(&accepted1, &buffer[sizeof(int) + sizeof(paxos_accepted) + MSG_SIZE + sizeof(int)]);
+            process_write_message(lmdbStorage, buffer, 2);
+            process_read_message(lmdbStorage, buffer, 2, fd);
         }
     }
 

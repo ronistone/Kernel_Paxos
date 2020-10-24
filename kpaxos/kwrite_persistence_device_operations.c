@@ -23,36 +23,43 @@ int write_persistence_open(struct inode *inodep, struct file *filep) {
 ssize_t write_persistence_read(struct file *filep, char *buffer, size_t len,
                       loff_t *offset) {
     int error_count, error_count_value = 0, error_count_buffer_id;
-    int llen;
+    int buffer_used = atomic_read(&(writePersistenceDevice.used_buf));
+    ssize_t num_msgs = MIN(len, buffer_used);
+    int buffer_index = 0;
+    kernel_device_callback* callback;
+    paxos_accepted* accepted;
 
     if (!writePersistenceDevice.working)
         return 0;
 
-    kernel_device_callback* callback = writePersistenceDevice.callback_buf[writePersistenceDevice.first_buf];
-    paxos_accepted* accepted = writePersistenceDevice.msg_buf[writePersistenceDevice.first_buf];
+    for(int i = 0; i < num_msgs; i++){
+      callback = writePersistenceDevice.callback_buf[writePersistenceDevice.first_buf];
+      accepted = writePersistenceDevice.msg_buf[writePersistenceDevice.first_buf];
 
-    llen = sizeof(paxos_accepted) + accepted->value.paxos_value_len;
-    error_count_buffer_id = copy_to_user(buffer, &writePersistenceDevice.first_buf, sizeof(int));
-    error_count = copy_to_user(&buffer[sizeof(int)], (char *)(accepted), sizeof(paxos_accepted) + accepted->value.paxos_value_len);
-    llen += sizeof(int);
+      error_count_buffer_id = copy_to_user(&buffer[buffer_index], &writePersistenceDevice.first_buf, sizeof(int));
+      buffer_index += sizeof(int);
 
-    paxos_log_debug("The message sended to buffer[%zu]: %s", accepted -> iid, &buffer[sizeof(int) + sizeof(paxos_accepted)]);
+      error_count = copy_to_user(&buffer[buffer_index], (char *)(accepted), sizeof(paxos_accepted) + accepted->value.paxos_value_len);
+      buffer_index += sizeof(paxos_accepted) + accepted->value.paxos_value_len;
 
-  if (error_count != 0 || error_count_buffer_id != 0 ) {
-    paxos_log_error("send fewer characters to the user: error_count=%d, error_count_value=%d, error_count_buffer_id=%d",
-            error_count, error_count_value, error_count_buffer_id);
-    return -1;
-  } else {
-    writePersistenceDevice.first_buf = (writePersistenceDevice.first_buf + 1) % BUFFER_SIZE;
-    atomic_dec(&(writePersistenceDevice.used_buf));
-  }
+      paxos_log_debug("The message sended to buffer[%zu]: %s", accepted -> iid, &buffer[sizeof(int) + sizeof(paxos_accepted)]);
 
-    if(callback != NULL && !callback -> is_done) {
-      callback->response = accepted;
-      wake_up(&(callback -> response_wait));
+      if (error_count != 0 || error_count_buffer_id != 0 ) {
+        paxos_log_error("send fewer characters to the user: error_count=%d, error_count_value=%d, error_count_buffer_id=%d",
+                error_count, error_count_value, error_count_buffer_id);
+        return -1;
+      } else {
+        writePersistenceDevice.first_buf = (writePersistenceDevice.first_buf + 1) % BUFFER_SIZE;
+        atomic_dec(&(writePersistenceDevice.used_buf));
+      }
+
+      if(callback != NULL && !callback -> is_done) {
+        callback->response = accepted;
+        wake_up(&(callback -> response_wait));
+      }
     }
 
-    return llen;
+    return num_msgs;
 }
 
 ssize_t write_persistence_write(struct file *filep, const char *buffer, size_t len,

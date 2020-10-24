@@ -15,6 +15,12 @@ typedef uint8_t eth_address;
 #define MAX_PAXOS_VALUE_SIZE ETH_DATA_LEN
 #define NOOP (void)0
 
+#define MIN(a,b) \
+  ({ __typeof__ (a) _a = (a); \
+      __typeof__ (b) _b = (b); \
+    _a < _b ? _a : _b; })
+
+
 #define LOG_DEBUG(fmt, args...)                                                \
   printk(KERN_DEBUG "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
 //  printk_ratelimit()? NOOP : printk(KERN_DEBUG "[%s] %s: " fmt "\n", current -> comm, MOD_NAME, ##args)
